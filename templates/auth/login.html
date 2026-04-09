@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Log In - StayNest{% endblock %}
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <h1>Welcome back</h1>
+        <p class="auth-subtitle">Log in to continue to StayNest</p>
+        <form id="login-form" onsubmit="return handleLogin(event)">
+            <div class="form-group">
+                <label for="login-email">Email</label>
+                <input type="email" id="login-email" name="email" placeholder="Enter your email" required>
+            </div>
+            <div class="form-group">
+                <label for="login-password">Password</label>
+                <input type="password" id="login-password" name="password" placeholder="Enter your password" required>
+            </div>
+            <button type="submit" class="btn-auth" id="login-btn">Log In</button>
+        </form>
+        <div class="auth-footer">
+            Don't have an account? <a href="/register">Sign up</a>
+        </div>
+    </div>
+</div>
+<script>
+function handleLogin(e) {
+    e.preventDefault();
+    const btn = document.getElementById('login-btn');
+    btn.disabled = true; btn.textContent = 'Logging in...';
+    fetch('/api/auth/login', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            email: document.getElementById('login-email').value,
+            password: document.getElementById('login-password').value
+        })
+    }).then(r => r.json()).then(data => {
+        if (data.success) {
+            window.location.href = data.user && data.user.role === 'host' ? '/host/dashboard' :
+                                   data.user && data.user.role === 'admin' ? '/admin/dashboard' : '/';
+        } else {
+            showToast(data.error || 'Login failed', 'danger');
+            btn.disabled = false; btn.textContent = 'Log In';
+        }
+    }).catch(() => { showToast('Something went wrong', 'danger'); btn.disabled = false; btn.textContent = 'Log In'; });
+    return false;
+}
+</script>
+{% endblock %}

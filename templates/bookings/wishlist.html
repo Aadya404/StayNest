@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}My Wishlist - StayNest{% endblock %}
+{% block content %}
+<div class="wishlist-container" style="padding: 40px 0; min-height: 70vh;">
+    <div class="wishlist-header" style="margin-bottom: 32px;">
+        <h1 style="font-size: 32px; font-weight: 800; color: var(--text-main);">Wishlist</h1>
+        <p style="color: var(--text-secondary); margin-top: 8px;">{{ properties|length }} saved properties</p>
+    </div>
+
+    {% if properties %}
+    <div class="property-grid">
+        {% for p in properties %}
+        <a href="/property/{{ p.property_id }}" class="property-card" id="wishlist-item-{{ p.property_id }}">
+            <div class="card-image-container">
+                <img src="{{ p.primary_image or 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800' }}" 
+                     alt="{{ p.title }}" class="card-image" loading="lazy"
+                     onerror="this.src='https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800'">
+                
+                <button class="card-wishlist active" 
+                        onclick="event.preventDefault(); removeFromWishlist({{ p.property_id }}, this)">
+                    <i class="fas fa-heart"></i>
+                </button>
+            </div>
+            <div class="card-info">
+                <div class="card-info-top">
+                    <span class="card-location">{{ p.city }}, {{ p.state }}</span>
+                    <span class="card-rating"><i class="fas fa-star"></i> {{ "%.1f"|format(p.average_rating) if p.average_rating else 'New' }}</span>
+                </div>
+                <div class="card-type">{{ p.title }}</div>
+                <div class="card-price"><strong>Rs. {{ "{:,.0f}".format(p.price_per_night) }}</strong> <span>/ night</span></div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state" style="text-align: center; padding: 100px 0;">
+        <i class="fas fa-heart" style="font-size: 64px; color: var(--border-medium); margin-bottom: 24px; display: block;"></i>
+        <h2 style="font-size: 24px; font-weight: 700; margin-bottom: 12px;">No properties saved yet</h2>
+        <p style="color: var(--text-secondary); margin-bottom: 32px;">As you explore, click the heart icon, to save your favorite stays.</p>
+        <a href="/" class="btn-primary" style="text-decoration: none; display: inline-block;">Start exploring</a>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function removeFromWishlist(id, btn) {
+    fetch('/api/wishlist/toggle/' + id, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success && !data.added) {
+            const card = document.getElementById('wishlist-item-' + id);
+            card.style.opacity = '0';
+            card.style.transform = 'scale(0.9)';
+            card.style.transition = 'all 0.3s ease';
+            setTimeout(() => {
+                card.remove();
+                if (document.querySelectorAll('.property-card').length === 0) {
+                    location.reload(); // Show empty state
+                }
+            }, 300);
+            showToast('Removed from wishlist');
+        }
+    });
+}
+</script>
+{% endblock %}

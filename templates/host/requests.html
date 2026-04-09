@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Booking Requests - StayNest{% endblock %}
+{% block content %}
+<div class="dashboard-container">
+    <div class="section-header"><h2>Booking Requests</h2></div>
+    <div style="display:flex;gap:12px;margin-bottom:24px;">
+        <button class="filter-btn active" onclick="filterRequests(null, this)">All</button>
+        <button class="filter-btn" onclick="filterRequests('pending', this)">Pending</button>
+        <button class="filter-btn" onclick="filterRequests('confirmed', this)">Confirmed</button>
+        <button class="filter-btn" onclick="filterRequests('cancelled', this)">Cancelled</button>
+    </div>
+    <div id="requests-list">
+    {% for req in requests %}
+    <div class="booking-card-trip" id="req-{{ req.booking_id }}" data-status="{{ req.status }}">
+        <img src="{{ req.property_image or 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800' }}" class="trip-image" onerror="this.src='https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800'">
+        <div class="trip-info">
+            <h3>{{ req.property_title }}</h3>
+            <div class="trip-dates">{{ req.guest_first_name }} {{ req.guest_last_name }} &middot; {{ req.check_in }} to {{ req.check_out }}</div>
+            <div class="trip-host">{{ req.num_guests }} guests &middot; Rs. {{ "{:,.0f}".format(req.total_price) }}</div>
+            <div class="trip-status status-{{ req.status }}">{{ req.status|capitalize }}</div>
+        </div>
+        <div class="trip-actions">
+            {% if req.status == 'pending' %}
+            <button class="btn-primary-sm" onclick="handleReq({{ req.booking_id }},'approve')"><i class="fas fa-check"></i> Approve</button>
+            <button class="btn-outline" style="color:var(--danger)" onclick="handleReq({{ req.booking_id }},'reject')"><i class="fas fa-times"></i> Decline</button>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+    {% if not requests %}
+    <div class="empty-state"><i class="fas fa-clipboard-list"></i><h3>No booking requests</h3></div>
+    {% endif %}
+    </div>
+</div>
+<script>
+function handleReq(id, action) {
+    fetch(`/api/bookings/${id}/${action}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:'{}'})
+    .then(r=>r.json()).then(d=>{showToast(d.message,d.success?'success':'danger');if(d.success)setTimeout(()=>location.reload(),1000);});
+}
+function filterRequests(status, btn) {
+    document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('[data-status]').forEach(el=>{
+        el.style.display = (!status || el.dataset.status === status) ? '' : 'none';
+    });
+}
+</script>
+{% endblock %}

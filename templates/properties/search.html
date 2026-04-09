@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% block title %}Explore Stays - StayNest{% endblock %}
+{% block content %}
+<div class="explore-container">
+    <div class="search-input-full">
+        <i class="fas fa-search"></i>
+        <input type="text" id="search-location" placeholder="Search by location, city, or property name..."
+               value="{{ request.args.get('location', '') }}" onkeyup="if(event.key==='Enter')searchProperties()">
+    </div>
+    <div class="categories-bar">
+        {% for cat in categories %}
+        <div class="category-item{% if request.args.get('category_id')|string == cat.category_id|string %} active{% endif %}"
+             data-id="{{ cat.category_id }}" onclick="selectCategory(this)">
+            <i class="fas {{ cat.icon or 'fa-home' }}"></i>
+            <span>{{ cat.name }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="search-filters">
+        <div class="form-group" style="margin:0;width:auto;">
+            <input type="text" id="filter-checkin" placeholder="Check in" style="width:150px; cursor:pointer;" value="{{ request.args.get('check_in', '') }}">
+        </div>
+        <div class="form-group" style="margin:0;width:auto;">
+            <input type="text" id="filter-checkout" placeholder="Check out" style="width:150px; cursor:pointer;" value="{{ request.args.get('check_out', '') }}">
+        </div>
+        <select id="filter-guests" style="width:130px">
+            <option value="">Guests</option>
+            {% for i in range(1, 17) %}
+            <option value="{{ i }}">{{ i }} guest{{ 's' if i > 1 else '' }}</option>
+            {% endfor %}
+        </select>
+        <input type="number" id="filter-min-price" placeholder="Min price" style="width:120px">
+        <input type="number" id="filter-max-price" placeholder="Max price" style="width:120px">
+        <select id="filter-type" style="width:140px">
+            <option value="">All types</option>
+            <option value="apartment">Apartment</option>
+            <option value="house">House</option>
+            <option value="villa">Villa</option>
+            <option value="cabin">Cabin</option>
+            <option value="cottage">Cottage</option>
+            <option value="loft">Loft</option>
+            <option value="studio">Studio</option>
+            <option value="resort">Resort</option>
+            <option value="farmhouse">Farmhouse</option>
+            <option value="treehouse">Treehouse</option>
+            <option value="houseboat">Houseboat</option>
+        </select>
+        <button class="btn-primary-sm" onclick="searchProperties()" style="padding:10px 24px;background:var(--gradient-primary);color:white;border-radius:var(--radius-sm);font-weight:600;">
+            <i class="fas fa-search"></i> Search
+        </button>
+        <button onclick="clearFilters()" style="padding:10px 20px;background:var(--bg-secondary);color:var(--text-main);border:1px solid var(--border-medium);border-radius:var(--radius-sm);font-weight:600;cursor:pointer;white-space:nowrap;">
+            <i class="fas fa-times"></i> Clear
+        </button>
+    </div>
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
+        <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+            <div class="results-count" id="results-count" style="color:var(--text-secondary); font-size:14px;"></div>
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;" id="active-filters-bar"></div>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+            <label for="filter-sort" style="font-size:14px; color:var(--text-secondary); font-weight:600;">Sort By:</label>
+            <select id="filter-sort" style="padding:8px; border:1px solid var(--border-medium); border-radius:var(--radius-sm); font-size:14px;" onchange="searchProperties()">
+                <option value="rating_desc">Highest Rated</option>
+                <option value="rating_asc">Lowest Rated</option>
+            </select>
+        </div>
+    </div>
+    <div class="property-grid" id="property-grid">
+        <div style="grid-column:1/-1;text-align:center;padding:40px;"><span class="loading-spinner"></span></div>
+    </div>
+    <div id="pagination" style="display:flex;gap:8px;justify-content:center;margin-top:32px;"></div>
+</div>
+<script>
+function selectCategory(el) {
+    document.querySelectorAll('.category-item').forEach(c => c.classList.remove('active'));
+    if (el.classList.contains('active')) { el.classList.remove('active'); }
+    else { el.classList.add('active'); }
+    searchProperties();
+}
+
+function clearFilters() {
+    document.getElementById('search-location').value = '';
+    document.getElementById('filter-min-price').value = '';
+    document.getElementById('filter-max-price').value = '';
+    document.getElementById('filter-guests').value = '';
+    document.getElementById('filter-type').value = '';
+    try { flatpickr('#filter-checkin').clear(); } catch(e) {}
+    try { flatpickr('#filter-checkout').clear(); } catch(e) {}
+    document.querySelectorAll('.category-item').forEach(c => c.classList.remove('active'));
+    searchProperties();
+}
+
+function updateActiveFilterChips() {
+    const bar = document.getElementById('active-filters-bar');
+    const chips = [];
+    const loc = document.getElementById('search-location').value;
+    const checkin = document.getElementById('filter-checkin').value;
+    const checkout = document.getElementById('filter-checkout').value;
+    const guests = document.getElementById('filter-guests').value;
+    const minP = document.getElementById('filter-min-price').value;
+    const maxP = document.getElementById('filter-max-price').value;
+    const type = document.getElementById('filter-type').value;
+    const cat = document.querySelector('.category-item.active');
+
+    if (loc) chips.push({ label: '📍 ' + loc, clear: () => { document.getElementById('search-location').value = ''; searchProperties(); } });
+    if (checkin) chips.push({ label: '📅 From: ' + checkin, clear: () => { try{flatpickr('#filter-checkin').clear();}catch(e){document.getElementById('filter-checkin').value='';} searchProperties(); } });
+    if (checkout) chips.push({ label: '📅 To: ' + checkout, clear: () => { try{flatpickr('#filter-checkout').clear();}catch(e){document.getElementById('filter-checkout').value='';} searchProperties(); } });
+    if (guests) chips.push({ label: '👥 ' + guests + ' guests', clear: () => { document.getElementById('filter-guests').value = ''; searchProperties(); } });
+    if (minP || maxP) chips.push({ label: '💰 Rs.' + (minP||'0') + '–' + (maxP||'∞'), clear: () => { document.getElementById('filter-min-price').value=''; document.getElementById('filter-max-price').value=''; searchProperties(); } });
+    if (type) chips.push({ label: '🏠 ' + type, clear: () => { document.getElementById('filter-type').value=''; searchProperties(); } });
+    if (cat) chips.push({ label: '🏷️ ' + cat.querySelector('span').textContent, clear: () => { cat.classList.remove('active'); searchProperties(); } });
+
+    if (!chips.length) { bar.innerHTML = ''; return; }
+
+    const chipStyle = 'display:flex;align-items:center;gap:6px;background:var(--bg-secondary);border:1px solid var(--border-medium);padding:6px 12px;border-radius:20px;font-size:13px;font-weight:500;';
+    bar.innerHTML = chips.map((c, i) =>
+        `<span style="${chipStyle}" id="chip-${i}">${c.label} <button onclick="activeChips[${i}].clear()" style="background:none;border:none;cursor:pointer;font-size:16px;line-height:1;color:var(--text-muted);padding:0 0 0 2px;" title="Remove">&times;</button></span>`
+    ).join('') +
+    `<button onclick="clearFilters()" style="background:var(--primary);color:white;border:none;padding:6px 16px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;">Clear All</button>`;
+
+    window.activeChips = chips;
+}
+
+function searchProperties(page = 1) {
+    updateActiveFilterChips();
+    const params = new URLSearchParams();
+    const location = document.getElementById('search-location')?.value;
+    const checkin = document.getElementById('filter-checkin')?.value;
+    const checkout = document.getElementById('filter-checkout')?.value;
+    const guests = document.getElementById('filter-guests')?.value;
+    const minPrice = document.getElementById('filter-min-price')?.value;
+    const maxPrice = document.getElementById('filter-max-price')?.value;
+    const type = document.getElementById('filter-type')?.value;
+
+    if (location) params.set('location', location);
+    if (checkin) params.set('check_in', checkin);
+    if (checkout) params.set('check_out', checkout);
+    if (guests) params.set('guests', guests);
+    if (minPrice) params.set('min_price', minPrice);
+    if (maxPrice) params.set('max_price', maxPrice);
+    if (type) params.set('property_type', type);
+    params.set('page', page);
+
+    const activeCat = document.querySelector('.category-item.active');
+    if (activeCat && activeCat.dataset.id) params.set('category_id', activeCat.dataset.id);
+
+    const grid = document.getElementById('property-grid');
+    const count = document.getElementById('results-count');
+    if (grid) grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;"><span class="loading-spinner"></span></div>';
+
+    fetch('/api/properties?' + params.toString())
+        .then(r => r.json())
+        .then(data => {
+            if (count) count.textContent = data.total + ' stays found';
+            if (grid) {
+                if (data.properties.length === 0) {
+                    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">
+                        <i class="fas fa-search" style="font-size:48px;color:var(--border-medium);margin-bottom:16px;display:block;"></i>
+                        <h3>No properties found</h3>
+                        <p style="color:var(--text-secondary);margin-bottom:20px;">Try adjusting your search filters</p>
+                        <button onclick="clearFilters()" style="background:var(--gradient-primary);color:white;border:none;padding:10px 24px;border-radius:var(--radius-sm);font-weight:700;cursor:pointer;">Clear Filters</button>
+                    </div>`;
+                    return;
+                }
+                grid.innerHTML = data.properties.map(p => createPropertyCard(p)).join('');
+            }
+            const pag = document.getElementById('pagination');
+            if (pag && data.total_pages > 1) {
+                let html = '';
+                for (let i = 1; i <= data.total_pages; i++) {
+                    html += `<button class="filter-btn ${i === data.page ? 'active' : ''}" onclick="searchProperties(${i})">${i}</button>`;
+                }
+                pag.innerHTML = html;
+            } else if (pag) { pag.innerHTML = ''; }
+        });
+}
+
+document.addEventListener('DOMContentLoaded', function() { 
+    searchProperties(); 
+    const fco = flatpickr("#filter-checkout", { minDate: "today", dateFormat: "Y-m-d", onChange: searchProperties });
+    const fci = flatpickr("#filter-checkin", { minDate: "today", dateFormat: "Y-m-d",
+        onChange: function(selectedDates, dateStr) {
+            if(selectedDates.length > 0) { fco.set("minDate", selectedDates[0]); fco.open(); }
+            searchProperties();
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}My Trips - StayNest{% endblock %}
+{% block content %}
+<div class="trips-container">
+    <div class="trips-header"><h1>Your trips</h1></div>
+    {% if bookings %}
+    {% for b in bookings %}
+    <div class="booking-card-trip">
+        <img src="{{ b.property_image or 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800' }}"
+             alt="{{ b.property_title }}" class="trip-image" onerror="this.src='https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800'">
+        <div class="trip-info">
+            <h3>{{ b.property_title }}</h3>
+            <div class="trip-dates"><i class="far fa-calendar"></i> {{ b.check_in }} to {{ b.check_out }} ({{ b.total_nights }} nights)</div>
+            <div class="trip-host">Hosted by {{ b.host_first_name }} {{ b.host_last_name }} &middot; {{ b.num_guests }} guest{{ 's' if b.num_guests > 1 else '' }}</div>
+            <div class="trip-status status-{{ b.status }}">{{ b.status|capitalize }}</div>
+        </div>
+        <div class="trip-actions">
+            <span style="font-size:18px;font-weight:700;">Rs. {{ "{:,.0f}".format(b.total_price) }}</span>
+            {% if b.status in ('confirmed', 'completed') %}
+            <a href="/api/bookings/{{ b.booking_id }}/invoice" class="btn-outline"><i class="fas fa-download"></i> Invoice</a>
+            {% endif %}
+            {% if b.status in ('pending', 'confirmed') %}
+            <button class="btn-outline" style="color:var(--danger);border-color:var(--danger);" onclick="cancelBooking({{ b.booking_id }})">Cancel</button>
+            {% endif %}
+            {% if b.status in ('completed', 'confirmed') and not b.has_review %}
+            <button class="btn-primary-sm" onclick="openReviewModal({{ b.booking_id }}, {{ b.property_id }})">Write Review</button>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-suitcase-rolling"></i>
+        <h3>No trips yet</h3>
+        <p>Time to start planning your next adventure!</p>
+        <a href="/explore" class="btn-primary">Explore stays</a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Review Modal -->
+<div class="modal-overlay" id="review-modal">
+    <div class="modal" style="position:relative;">
+        <button class="modal-close" onclick="closeReviewModal()"><i class="fas fa-times"></i></button>
+        <h2>Write a review</h2>
+        <form onsubmit="return submitReview(event)">
+            <input type="hidden" id="review-booking-id">
+            <input type="hidden" id="review-property-id">
+            <div class="form-group">
+                <label>Overall Rating</label>
+                <div class="star-rating" id="star-rating">
+                    {% for i in range(5, 0, -1) %}
+                    <input type="radio" name="rating" id="star{{ i }}" value="{{ i }}">
+                    <label for="star{{ i }}"><i class="fas fa-star"></i></label>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="review-comment">Your experience</label>
+                <textarea id="review-comment" rows="4" placeholder="Tell others about your stay..."></textarea>
+            </div>
+            <button type="submit" class="btn-auth" id="review-btn">Submit Review</button>
+        </form>
+    </div>
+</div>
+
+<script>
+function cancelBooking(id) {
+    if (!confirm('Are you sure you want to cancel this booking?')) return;
+    fetch(`/api/bookings/${id}/cancel`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({reason:'Cancelled by guest'})})
+    .then(r => r.json()).then(data => { showToast(data.message, data.success ? 'success' : 'danger'); if(data.success) setTimeout(()=>location.reload(),1000); });
+}
+function openReviewModal(bookingId, propertyId) {
+    document.getElementById('review-booking-id').value = bookingId;
+    document.getElementById('review-property-id').value = propertyId;
+    document.getElementById('review-modal').classList.add('active');
+}
+function closeReviewModal() { document.getElementById('review-modal').classList.remove('active'); }
+function submitReview(e) {
+    e.preventDefault();
+    const rating = document.querySelector('input[name="rating"]:checked');
+    if (!rating) { showToast('Please select a rating', 'warning'); return false; }
+    const btn = document.getElementById('review-btn'); btn.disabled = true;
+    fetch('/api/reviews', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({
+        booking_id: parseInt(document.getElementById('review-booking-id').value),
+        property_id: parseInt(document.getElementById('review-property-id').value),
+        rating: parseInt(rating.value),
+        comment: document.getElementById('review-comment').value
+    })}).then(r=>r.json()).then(data => {
+        if(data.success) { showToast('Review submitted!'); closeReviewModal(); setTimeout(()=>location.reload(),1000); }
+        else { showToast(data.error,'danger'); btn.disabled=false; }
+    });
+    return false;
+}
+</script>
+{% endblock %}

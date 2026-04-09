@@ -1,0 +1,418 @@
+{% extends "base.html" %}
+{% block title %}Host Dashboard - StayNest{% endblock %}
+{% block extra_css %}<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>{% endblock %}
+{% block content %}
+<div class="dashboard-container" style="max-width: 1200px;">
+    
+    <!-- Welcome Banner Upgrade -->
+    <div class="dashboard-header" style="background:var(--bg-secondary); padding:32px; border-radius:var(--radius-lg); margin-bottom: 32px; display:flex; align-items:center; justify-content:space-between;">
+        <div style="display:flex; align-items:center; gap:20px;">
+            <div style="width:70px; height:70px; background:var(--primary); color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:28px; font-weight:700;">
+                {{ current_user.first_name[0] }}{{ current_user.last_name[0] }}
+            </div>
+            <div>
+                <h1 style="font-size:28px; margin:0 0 4px 0;">Welcome back, {{ current_user.first_name }}
+                    {% if stats.is_superhost %}<span style="font-size:14px; background:#FFC107; color:#333; padding:4px 8px; border-radius:12px; margin-left:8px; vertical-align:middle;"><i class="fas fa-medal"></i> Superhost</span>{% endif %}
+                </h1>
+                <p style="color:var(--text-secondary); margin:0;">Here is an overview of your hosting performance</p>
+            </div>
+        </div>
+        <div style="display:flex; gap:16px;">
+            <div style="text-align:right; background:white; padding:12px 20px; border-radius:var(--radius-md); box-shadow:var(--shadow-sm);">
+                <p style="margin:0; font-size:13px; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Pending Requests</p>
+                <div style="font-size:24px; font-weight:700; color:{% if pending_requests|length > 0 %}var(--warning){% else %}var(--text-primary){% endif %};">{{ pending_requests|length }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Tabs -->
+    <div class="tabs-header">
+        <button class="tab-btn active" onclick="switchTab('overview', this)">Overview</button>
+        <button class="tab-btn" onclick="switchTab('bookings', this)">Bookings</button>
+        <button class="tab-btn" onclick="switchTab('billing', this)">Billing</button>
+        <button class="tab-btn" onclick="switchTab('performance', this)">Performance</button>
+    </div>
+
+    <!-- OVERVIEW TAB -->
+    <div id="tab-overview" class="tab-pane active">
+        <div class="stats-grid">
+            <div class="stat-card" style="background:linear-gradient(135deg, #fff, #fef4f5); border:1px solid #ffe3e6;">
+                <div class="stat-icon revenue" style="background:white; box-shadow:var(--shadow-sm);"><i class="fas fa-wallet" style="color:var(--primary);"></i></div>
+                <div class="stat-value">Rs. {{ "{:,.0f}".format(stats.total_revenue) }}</div>
+                <div class="stat-label">Total Revenue</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon bookings"><i class="fas fa-calendar-check"></i></div>
+                <div class="stat-value">{{ stats.total_bookings }}</div>
+                <div class="stat-label">Total Bookings</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon rating"><i class="fas fa-star"></i></div>
+                <div class="stat-value">{{ stats.average_rating }}</div>
+                <div class="stat-label">Average Rating</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon occupancy"><i class="fas fa-chart-pie"></i></div>
+                <div class="stat-value">{{ stats.occupancy_rate }}%</div>
+                <div class="stat-label">Occupancy Rate</div>
+            </div>
+        </div>
+
+        <div class="dashboard-card" style="margin-top:24px;">
+            <h3>Top Performing Properties</h3>
+            <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:20px; margin-top:16px;">
+                {% for p in top_properties %}
+                <div style="border:1px solid var(--border-light); border-radius:var(--radius-md); overflow:hidden;">
+                    <img src="{{ p.primary_image or 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800' }}" style="width:100%; height:180px; object-fit:cover;" onerror="this.src='https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800'">
+                    <div style="padding:16px;">
+                        <h4 style="margin:0 0 4px 0;">{{ p.title }}</h4>
+                        <p style="margin:0 0 12px 0; color:var(--text-secondary); font-size:13px;">{{ p.city }} &middot; {{ p.booking_count }} bookings <i class="fas fa-star" style="color:#FFC107;"></i> {{ "%.1f"|format(p.average_rating) if p.average_rating else 'N/A' }}</p>
+                        <strong style="color:var(--success);">Revenue: Rs. {{ "{:,.0f}".format(p.total_revenue) }}</strong>
+                    </div>
+                </div>
+                {% else %}
+                <p style="color:var(--text-muted);">No property stats available.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- BOOKINGS TAB -->
+    <div id="tab-bookings" class="tab-pane">
+        <h3 style="margin-top:0;">Pending Booking Requests</h3>
+        {% if pending_requests %}
+        <div style="display:grid; gap:20px; margin-top:20px;">
+            {% for req in pending_requests %}
+            <div class="request-card" id="request-{{ req.booking_id }}" style="display:flex; flex-direction:column; gap:16px; padding:20px; border:1px solid var(--border-light); border-radius:var(--radius-lg);">
+                <div style="display:flex; gap:20px;">
+                    <img src="{{ req.property_image or 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800' }}" class="request-image" style="width:140px; height:140px; object-fit:cover; border-radius:var(--radius-md);" onerror="this.src='https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800'">
+                    <div class="request-info" style="flex:1;">
+                        <h4 style="margin:0 0 8px 0; font-size:20px;">{{ req.property_title }}</h4>
+                        <p style="margin:0 0 4px 0; color:var(--text-secondary);"><i class="fas fa-user"></i> {{ req.guest_first_name }} {{ req.guest_last_name }} &middot; {{ req.num_guests }} guest{{ 's' if req.num_guests > 1 else '' }}</p>
+                        <p style="margin:0 0 12px 0; color:var(--text-secondary);"><i class="far fa-calendar-alt"></i> <strong>In:</strong> {{ req.check_in }} &nbsp;|&nbsp; <strong>Out:</strong> {{ req.check_out }} ({{ req.total_nights }} nights)</p>
+                        
+                        <div style="background:var(--bg-secondary); padding:12px 16px; border-radius:var(--radius-sm); font-size:14px; display:inline-block; border:1px solid var(--border-light);">
+                            <div style="margin-bottom:6px; color:var(--text-muted); font-size:12px; text-transform:uppercase; font-weight:700;">Billing Breakdown</div>
+                            <div style="display:flex; justify-content:space-between; gap:32px;"><span>Base Price:</span> <span>Rs. {{ "{:,.0f}".format(req.price_per_night * req.total_nights) }}</span></div>
+                            {% if req.cleaning_fee %}<div style="display:flex; justify-content:space-between; gap:32px;"><span>Cleaning Fee:</span> <span>Rs. {{ "{:,.0f}".format(req.cleaning_fee) }}</span></div>{% endif %}
+                            <hr style="margin:8px 0; border:none; border-top:1px dashed var(--border-medium);">
+                            <div style="display:flex; justify-content:space-between; gap:32px; font-weight:700; color:var(--primary); font-size:16px;"><span>Total Payout:</span> <span>Rs. {{ "{:,.0f}".format(req.total_price) }}</span></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="request-actions" style="display:flex; justify-content:flex-end; gap:12px; border-top:1px solid var(--border-light); padding-top:16px;">
+                    <button class="btn-sm btn-reject" onclick="if(confirm('Are you sure you want to decline this request?')) handleRequest({{ req.booking_id }}, 'reject')" style="padding:10px 24px;">Decline</button>
+                    <button class="btn-sm btn-approve" onclick="if(confirm('Approve this request? The dates will be confirmed.')) handleRequest({{ req.booking_id }}, 'approve')" style="padding:10px 24px; background:var(--gradient-primary); color:white; border:none;">Approve</button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div style="text-align:center; padding:60px 0; border:1px dashed var(--border-medium); border-radius:var(--radius-lg);">
+            <i class="far fa-calendar-check" style="font-size:48px; color:var(--border-medium); margin-bottom:16px;"></i>
+            <h3 style="margin:0 0 8px 0;">You're all caught up!</h3>
+            <p style="color:var(--text-secondary); margin:0;">No pending booking requests to review right now.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- BILLING TAB -->
+    <div id="tab-billing" class="tab-pane">
+        <h2 style="margin-top:0;">Host Billing &amp; Payouts</h2>
+
+        <!-- Summary Cards -->
+        <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:20px; margin-top:24px;">
+            <div style="background:white; border:1px solid var(--border-light); border-radius:var(--radius-lg); padding:24px;">
+                <div style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:8px;">This Month's Earnings</div>
+                <div id="bill-month" style="font-size:26px; font-weight:800;">—</div>
+            </div>
+            <div style="background:white; border:1px solid var(--border-light); border-radius:var(--radius-lg); padding:24px;">
+                <div style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:8px;">Pending Payout</div>
+                <div id="bill-pending" style="font-size:26px; font-weight:800; color:#E07912;">—</div>
+            </div>
+            <div style="background:white; border:1px solid var(--border-light); border-radius:var(--radius-lg); padding:24px;">
+                <div style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:8px;">Total Paid Out</div>
+                <div id="bill-paid" style="font-size:26px; font-weight:800; color:#008A05;">—</div>
+            </div>
+            <div style="background:linear-gradient(135deg,#FF385C,#D80027); border-radius:var(--radius-lg); padding:24px; color:white;">
+                <div style="font-size:12px; font-weight:700; text-transform:uppercase; opacity:0.85; margin-bottom:8px;">Commission Rate</div>
+                <div id="bill-rate" style="font-size:26px; font-weight:800;">—</div>
+            </div>
+        </div>
+
+        <!-- Tier Progress -->
+        <div style="background:var(--bg-secondary); border:1px solid var(--border-light); border-radius:var(--radius-lg); padding:28px; margin-top:24px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h3 style="margin:0;">Commission Tier Progress</h3>
+                <span id="tier-badge" style="padding:6px 18px; border-radius:20px; font-weight:700; font-size:14px; background:var(--primary); color:white;">Loading…</span>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; text-align:center; margin-bottom:16px; border-radius:var(--radius-md); overflow:hidden;">
+                <div id="tb-bronze" style="padding:14px 8px; font-weight:700; background:var(--border-light); opacity:0.5; transition:all 0.3s;">
+                    🥉 Bronze<div style="font-size:12px; margin-top:4px;">0–9 bookings · 10%</div>
+                </div>
+                <div id="tb-silver" style="padding:14px 8px; font-weight:700; background:var(--border-light); opacity:0.5; transition:all 0.3s; border-left:2px solid white; border-right:2px solid white;">
+                    🥈 Silver<div style="font-size:12px; margin-top:4px;">10–49 bookings · 7%</div>
+                </div>
+                <div id="tb-gold" style="padding:14px 8px; font-weight:700; background:var(--border-light); opacity:0.5; transition:all 0.3s;">
+                    🥇 Gold<div style="font-size:12px; margin-top:4px;">50+ bookings · 5%</div>
+                </div>
+            </div>
+            <div style="background:var(--border-medium); border-radius:20px; height:10px; overflow:hidden;">
+                <div id="tier-bar" style="height:100%; background:var(--gradient-primary); border-radius:20px; transition:width 0.8s ease; width:0%;"></div>
+            </div>
+            <div id="tier-next-msg" style="margin-top:10px; font-size:14px; color:var(--text-secondary);"></div>
+        </div>
+
+        <!-- Transaction Table -->
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:40px; margin-bottom:16px;">
+            <h3 style="margin:0;">Transaction History</h3>
+            <button onclick="requestPayout()" style="background:var(--gradient-primary); color:white; border:none; padding:10px 24px; border-radius:var(--radius-sm); font-weight:700; cursor:pointer; font-size:14px; display:flex; align-items:center; gap:8px;">
+                <i class="fas fa-paper-plane"></i> Request Payout
+            </button>
+        </div>
+        <div style="overflow-x:auto; border-radius:var(--radius-md); border:1px solid var(--border-light);">
+            <table style="width:100%; border-collapse:collapse; background:white; min-width:900px;">
+                <thead>
+                <tr style="background:var(--bg-secondary); text-align:left;">
+                    <th style="padding:14px 16px; border-bottom:1px solid var(--border-light);">Date</th>
+                    <th style="padding:14px 16px; border-bottom:1px solid var(--border-light);">Guest</th>
+                    <th style="padding:14px 16px; border-bottom:1px solid var(--border-light);">Property</th>
+                    <th style="padding:14px 16px; border-bottom:1px solid var(--border-light);">Nights</th>
+                    <th style="padding:14px 16px; border-bottom:1px solid var(--border-light);">Booking Amt</th>
+                    <th style="padding:14px 16px; border-bottom:1px solid var(--border-light);">Commission</th>
+                    <th style="padding:14px 16px; border-bottom:1px solid var(--border-light); font-weight:800; color:var(--primary);">Net Payout</th>
+                    <th style="padding:14px 16px; border-bottom:1px solid var(--border-light);">Status</th>
+                    <th style="padding:14px 16px; border-bottom:1px solid var(--border-light);">Receipt</th>
+                </tr>
+                </thead>
+                <tbody id="billing-body">
+                    <tr><td colspan="9" style="padding:32px; text-align:center; color:var(--text-muted);"><span class="loading-spinner"></span></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- PERFORMANCE TAB -->
+    <div id="tab-performance" class="tab-pane">
+        <div class="dashboard-grid">
+            <div class="dashboard-card">
+                <h3>Revenue Trends</h3>
+                <div class="chart-container"><canvas id="revenueChart"></canvas></div>
+            </div>
+            <div class="dashboard-card">
+                <h3>Booking Status</h3>
+                <div class="chart-container"><canvas id="bookingChart"></canvas></div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+function switchTab(tabId, el) {
+    document.querySelectorAll('.tab-pane').forEach(img => img.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.getElementById('tab-' + tabId).classList.add('active');
+    if(el) el.classList.add('active');
+    history.replaceState(null, '', '?tab='+tabId);
+}
+
+function handleRequest(bookingId, action) {
+    const url = `/api/bookings/${bookingId}/${action}`;
+    fetch(url, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({})})
+    .then(r=>r.json()).then(data => {
+        showToast(data.message, data.success ? 'success' : 'danger');
+        if (data.success) {
+            const el = document.getElementById('request-'+bookingId);
+            if(el) el.style.display='none';
+        }
+    });
+}
+
+// Check url param for tab
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.has('tab')) {
+    const tabName = urlParams.get('tab');
+    const b = document.querySelector(`.tab-btn[onclick*="${tabName}"]`);
+    if(b) switchTab(tabName, b);
+}
+
+// ======= BILLING =======
+let billingData = null;
+
+function fmt(n) { return 'Rs. ' + Number(n).toLocaleString('en-IN', {maximumFractionDigits:0}); }
+
+function loadBilling() {
+    fetch('/api/host/billing')
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) return;
+        billingData = data;
+        const s = data.summary;
+        // Summary cards
+        document.getElementById('bill-month').textContent = fmt(s.paid_out); // use paid_out as proxy
+        document.getElementById('bill-pending').textContent = fmt(s.pending_payouts);
+        document.getElementById('bill-paid').textContent = fmt(s.paid_out);
+        document.getElementById('bill-rate').textContent = data.tier.rate;
+
+        // Tier progress
+        const t = data.tier;
+        document.getElementById('tier-badge').textContent = t.name + ' · ' + t.rate;
+        const activeStyle = 'background:var(--gradient-primary); color:white; opacity:1;';
+        const dimStyle = 'background:var(--border-light); opacity:0.45;';
+        document.getElementById('tb-bronze').style.cssText += t.name === 'Bronze' ? activeStyle : dimStyle;
+        document.getElementById('tb-silver').style.cssText += t.name === 'Silver' ? activeStyle : dimStyle;
+        document.getElementById('tb-gold').style.cssText += t.name === 'Gold' ? activeStyle : dimStyle;
+        setTimeout(() => { document.getElementById('tier-bar').style.width = t.progress + '%'; }, 200);
+        if (t.next_tier) {
+            const needed = t.name === 'Bronze' ? 10 - t.bookings : 50 - t.bookings;
+            document.getElementById('tier-next-msg').textContent =
+                `${needed} more completed booking${needed !== 1 ? 's' : ''} to reach ${t.next_tier} tier!`;
+        } else {
+            document.getElementById('tier-next-msg').textContent = '🏆 You\'ve reached the highest tier — Gold (5% commission)!';
+        }
+
+        // Table
+        const tbody = document.getElementById('billing-body');
+        if (!data.transactions.length) {
+            tbody.innerHTML = '<tr><td colspan="9" style="padding:32px;text-align:center;color:var(--text-muted);">No transactions yet.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = data.transactions.map((tx, i) => {
+            const statusColor = tx.payment_status === 'completed' ? '#008A05' : '#E07912';
+            const statusLabel = tx.payment_status === 'completed' ? 'Paid' : 'Pending';
+            const date = tx.paid_at ? tx.paid_at.slice(0, 10) : '—';
+            return `<tr>
+                <td style="padding:13px 16px;border-bottom:1px solid var(--border-light);">${date}</td>
+                <td style="padding:13px 16px;border-bottom:1px solid var(--border-light);">${tx.guest_name}</td>
+                <td style="padding:13px 16px;border-bottom:1px solid var(--border-light);max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${tx.property_title}</td>
+                <td style="padding:13px 16px;border-bottom:1px solid var(--border-light);">${tx.total_nights || '—'}</td>
+                <td style="padding:13px 16px;border-bottom:1px solid var(--border-light);">${fmt(tx.amount)}</td>
+                <td style="padding:13px 16px;border-bottom:1px solid var(--border-light);color:#C13515;">${tx.commission_rate} · -${fmt(tx.commission_deducted)}</td>
+                <td style="padding:13px 16px;border-bottom:1px solid var(--border-light);font-weight:800;color:var(--primary);">${fmt(tx.net_payout)}</td>
+                <td style="padding:13px 16px;border-bottom:1px solid var(--border-light);"><span style="color:${statusColor};font-weight:700;">${statusLabel}</span></td>
+                <td style="padding:13px 16px;border-bottom:1px solid var(--border-light);">
+                    <button onclick="downloadReceipt(${i})" style="background:none;border:1px solid var(--border-medium);padding:6px 12px;border-radius:var(--radius-sm);cursor:pointer;font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;">
+                        <i class="fas fa-download"></i> PDF
+                    </button>
+                </td>
+            </tr>`;
+        }).join('');
+    });
+}
+
+function downloadReceipt(idx) {
+    const tx = billingData.transactions[idx];
+    const hostName = billingData.host_name;
+
+    // Load jsPDF on demand
+    if (typeof window.jspdf === 'undefined') {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+        s.onload = () => generatePDF(tx, hostName);
+        document.head.appendChild(s);
+    } else {
+        generatePDF(tx, hostName);
+    }
+}
+
+function generatePDF(tx, hostName) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const L = 20, W = 170;
+
+    // Header bar
+    doc.setFillColor(255, 56, 92);
+    doc.rect(0, 0, 210, 28, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(20); doc.setFont('helvetica', 'bold');
+    doc.text('StayNest', L, 18);
+    doc.setFontSize(10); doc.setFont('helvetica', 'normal');
+    doc.text('Payout Receipt', 210 - L, 18, { align: 'right' });
+
+    doc.setTextColor(40, 40, 40);
+    let y = 40;
+
+    // Host info
+    doc.setFontSize(12); doc.setFont('helvetica', 'bold');
+    doc.text('Host: ' + hostName, L, y); y += 7;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+    doc.text('Payout Date: ' + (tx.paid_at ? tx.paid_at.slice(0,10) : new Date().toISOString().slice(0,10)), L, y); y += 5;
+    doc.text('Transaction ID: ' + (tx.transaction_id || 'N/A'), L, y); y += 5;
+    doc.text('Invoice: ' + (tx.invoice_number || 'N/A'), L, y); y += 12;
+
+    // Divider
+    doc.setDrawColor(220, 220, 220); doc.line(L, y, L + W, y); y += 8;
+
+    // Booking details
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
+    doc.text('Booking Details', L, y); y += 7;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+    doc.text('Property:', L, y); doc.text(tx.property_title || '—', L + 40, y); y += 6;
+    doc.text('Guest:', L, y); doc.text(tx.guest_name || '—', L + 40, y); y += 6;
+    doc.text('Check-in:', L, y); doc.text(tx.check_in || '—', L + 40, y); y += 6;
+    doc.text('Check-out:', L, y); doc.text(tx.check_out || '—', L + 40, y); y += 6;
+    doc.text('Nights:', L, y); doc.text(String(tx.total_nights || '—'), L + 40, y); y += 12;
+
+    // Financial summary box
+    doc.setDrawColor(220, 220, 220); doc.setFillColor(250, 250, 250);
+    doc.roundedRect(L, y, W, 44, 3, 3, 'FD'); y += 8;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
+    doc.text('Financial Summary', L + 4, y); y += 8;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+    doc.text('Gross Booking Amount:', L + 4, y);
+    doc.text('Rs. ' + Number(tx.amount).toLocaleString('en-IN', {maximumFractionDigits:0}), L + W - 4, y, {align:'right'}); y += 6;
+    doc.text('Commission (' + tx.commission_rate + '):', L + 4, y);
+    doc.setTextColor(193, 53, 21);
+    doc.text('- Rs. ' + Number(tx.commission_deducted).toLocaleString('en-IN', {maximumFractionDigits:0}), L + W - 4, y, {align:'right'});
+    doc.setTextColor(40,40,40); y += 6;
+    doc.setDrawColor(200,200,200); doc.line(L+4, y, L+W-4, y); y += 4;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(12);
+    doc.text('Net Payout:', L + 4, y);
+    doc.setTextColor(0,138,5);
+    doc.text('Rs. ' + Number(tx.net_payout).toLocaleString('en-IN', {maximumFractionDigits:0}), L + W - 4, y, {align:'right'});
+    doc.setTextColor(40,40,40); y += 18;
+
+    // Footer
+    doc.setDrawColor(220,220,220); doc.line(L, y, L+W, y); y += 8;
+    doc.setFontSize(9); doc.setFont('helvetica', 'italic'); doc.setTextColor(130,130,130);
+    doc.text('This is a system-generated receipt. No signature required.', L, y);
+    doc.text('StayNest · support@staynest.com · www.staynest.com', L, y + 5);
+
+    doc.save('StayNest_Payout_' + (tx.invoice_number || tx.payment_id) + '.pdf');
+}
+
+function requestPayout() {
+    showToast('Payout request submitted. You\'ll receive funds within 3–5 business days.', 'success');
+}
+
+// Auto-load billing when tab is opened
+document.querySelector('.tab-btn[onclick*="billing"]').addEventListener('click', function() {
+    if (!billingData) loadBilling();
+});
+if (urlParams.get('tab') === 'billing') loadBilling();
+
+// Charts
+const revData = {{ revenue_trends|tojson }};
+const ctx1 = document.getElementById('revenueChart');
+if (ctx1 && revData.length) {
+    new Chart(ctx1, { type: 'line', data: {
+        labels: revData.map(d=>d.month), datasets: [{
+            label: 'Revenue (Rs.)', data: revData.map(d=>d.revenue),
+            borderColor: '#FF385C', backgroundColor: 'rgba(255,56,92,0.1)',
+            fill: true, tension: 0.4, borderWidth: 2, pointRadius: 4
+        }]
+    }, options: { responsive: true, maintainAspectRatio: false, plugins: {legend:{display:false}},
+        scales: {y:{beginAtZero:true,ticks:{callback:v=>'Rs.'+v.toLocaleString()}}} }});
+}
+
+const ctx2 = document.getElementById('bookingChart');
+if (ctx2) {
+    new Chart(ctx2, { type: 'doughnut', data: {
+        labels: ['Confirmed','Pending','Completed','Cancelled'],
+        datasets: [{data: [{{ stats.confirmed_bookings }},{{ stats.pending_bookings }},{{ stats.completed_bookings }},{{ stats.cancelled_bookings }}],
+            backgroundColor: ['#008A05','#E07912','#0077CC','#C13515'], borderWidth: 0}]
+    }, options: { responsive: true, maintainAspectRatio: false, plugins: {legend:{position:'bottom'}} }});
+}
+</script>
+{% endblock %}

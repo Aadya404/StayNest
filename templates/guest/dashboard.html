@@ -1,0 +1,324 @@
+{% extends "base.html" %}
+{% block title %}My Account - StayNest{% endblock %}
+{% block content %}
+<div class="dashboard-container" style="max-width: 1000px; margin: 0 auto; padding: 40px 20px;">
+    
+    <div class="dashboard-header" style="margin-bottom: 32px; display:flex; align-items:center; gap:20px;">
+        <div style="width: 80px; height: 80px; background:var(--gradient-primary); color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:32px; font-weight:700;">
+            {{ current_user.first_name[0] }}{{ current_user.last_name[0] }}
+        </div>
+        <div>
+            <h1 style="font-size:32px; margin:0 0 4px 0;">Welcome back, {{ current_user.first_name }}!</h1>
+            <p style="color:var(--text-secondary); margin:0;">Manage your trips, loyalty points, and account settings.</p>
+        </div>
+    </div>
+
+    <!-- Top Tabs Navigation -->
+    <div class="tabs-header">
+        <button class="tab-btn active" onclick="switchTab('bookings', this)">My Bookings</button>
+        <button class="tab-btn" onclick="switchTab('wishlist', this)">Wishlist</button>
+        <button class="tab-btn" onclick="switchTab('loyalty', this)">Loyalty Points</button>
+        <button class="tab-btn" onclick="switchTab('vouchers', this)">Vouchers</button>
+    </div>
+
+    <!-- BOOKINGS TAB -->
+    <div id="tab-bookings" class="tab-pane active">
+        <h2>My Trips</h2>
+        {% if bookings %}
+        <div style="display:grid; gap:20px; margin-top:20px;">
+            {% for b in bookings %}
+            <div class="request-card" style="display:flex; padding:20px; border:1px solid var(--border-light); border-radius:var(--radius-lg); gap:20px;">
+                <img src="{{ b.property_image or 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800' }}" style="width:150px; height:120px; object-fit:cover; border-radius:var(--radius-md);">
+                <div style="flex:1;">
+                    <div style="display:flex; justify-content:space-between;">
+                        <h3 style="margin:0 0 8px 0; font-size:20px;">{{ b.property_title }}</h3>
+                        <span style="padding:4px 12px; border-radius:12px; font-size:12px; font-weight:600; 
+                            {% if b.status == 'confirmed' %}background:rgba(0,138,5,0.1); color:#008A05;
+                            {% elif b.status == 'pending' %}background:rgba(224,121,18,0.1); color:#E07912;
+                            {% else %}background:rgba(193,53,21,0.1); color:#C13515;{% endif %}">
+                            {{ b.status|title }}
+                        </span>
+                    </div>
+                    <p style="margin:0 0 4px 0; color:var(--text-secondary);"><i class="fas fa-map-marker-alt"></i> {{ b.city }}, {{ b.state }}</p>
+                    <p style="margin:0 0 12px 0; color:var(--text-secondary);"><i class="far fa-calendar-alt"></i> {{ b.check_in }} to {{ b.check_out }} &middot; {{ b.num_guests }} guest{{ 's' if b.num_guests > 1 else '' }}</p>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <strong style="font-size:18px;">Total: Rs. {{ "{:,.0f}".format(b.total_price) }}</strong>
+                        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                            {% if b.status == 'confirmed' %}
+                            <a href="/api/bookings/{{ b.booking_id }}/invoice" class="btn-sm" style="background:var(--bg-secondary); color:var(--text-primary); padding:8px 16px; border-radius:var(--radius-sm); border:1px solid var(--border-medium); text-decoration:none; font-size:14px;"><i class="fas fa-file-pdf"></i> Download Invoice</a>
+                            <button onclick="openReviewModal({{ b.booking_id }}, {{ b.property_id }})" class="btn-sm" style="background:var(--gradient-primary); color:white; padding:8px 16px; border-radius:var(--radius-sm); border:none; font-weight:600; cursor:pointer; font-size:14px;"><i class="fas fa-star"></i> Write Review</button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div style="text-align:center; padding:60px 0;">
+            <i class="fas fa-suitcase-rolling" style="font-size:48px; color:var(--border-medium); margin-bottom:16px;"></i>
+            <h3 style="margin:0 0 8px 0;">No trips booked... yet!</h3>
+            <p style="color:var(--text-secondary); margin-bottom:24px;">Time to dust off your bags and start planning your next adventure.</p>
+            <a href="/" class="btn-primary" style="text-decoration:none; display:inline-block;">Start Searching</a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- WISHLIST TAB -->
+    <div id="tab-wishlist" class="tab-pane">
+        <h2>Your Saved Homes</h2>
+        {% if wishlist %}
+        <div class="property-grid" style="margin-top:20px;" id="wishlist-grid">
+            {% for p in wishlist %}
+            <a href="/property/{{ p.property_id }}" class="property-card" id="wl-card-{{ p.property_id }}">
+                <div class="card-image-container">
+                    <img src="{{ p.primary_image or 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800' }}"
+                         alt="{{ p.title }}" class="card-image" loading="lazy"
+                         onerror="this.src='https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800'">
+                    <button class="card-wishlist active"
+                            onclick="event.preventDefault(); removeWishlistItem({{ p.property_id }}, this)">
+                        <i class="fas fa-heart"></i>
+                    </button>
+                </div>
+                <div class="card-info">
+                    <div class="card-info-top">
+                        <span class="card-location">{{ p.city }}, {{ p.state }}</span>
+                        <span class="card-rating"><i class="fas fa-star"></i> {{ "%.1f"|format(p.average_rating) if p.average_rating else 'New' }}</span>
+                    </div>
+                    <div class="card-type">{{ p.title }}</div>
+                    <div class="card-price"><strong>Rs. {{ "{:,.0f}".format(p.price_per_night) }}</strong> <span>/ night</span></div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div style="text-align:center; padding:60px 0;">
+            <i class="fas fa-heart" style="font-size:48px; color:var(--border-medium); margin-bottom:16px; display:block;"></i>
+            <h3 style="margin:0 0 8px 0;">No saved properties yet</h3>
+            <p style="color:var(--text-secondary); margin-bottom:24px;">Click the heart icon on any property to save it here.</p>
+            <a href="/" class="btn-primary" style="text-decoration:none; display:inline-block;">Explore Stays</a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- LOYALTY TAB -->
+    <div id="tab-loyalty" class="tab-pane">
+        <h2>Loyalty Points</h2>
+        <div style="background:var(--bg-secondary); padding:32px; border-radius:var(--radius-lg); display:flex; gap:40px; align-items:center; margin: 24px 0;">
+            <div style="flex:1;">
+                <h3 style="font-size:36px; margin:0 0 8px 0; background:var(--gradient-primary); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">{{ current_user.loyalty_points }} Points</h3>
+                <p style="color:var(--text-secondary); margin:0;">Earn 1 point for every ₹100 spent. Use points to unlock exclusive service fee discounts!</p>
+            </div>
+            <div style="flex:1; background:var(--bg-primary); padding:20px; border-radius:var(--radius-md); box-shadow:var(--shadow-sm); border:1px solid var(--border-light);">
+                <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                    <strong style="color:var(--text-main);">Tier Progress</strong>
+                    <span style="color:var(--primary); font-weight:700;">
+                        {% if current_user.loyalty_points >= 2000 %}GOLD{% elif current_user.loyalty_points >= 500 %}SILVER{% else %}BRONZE{% endif %}
+                    </span>
+                </div>
+                <div style="height:8px; background:var(--border-light); border-radius:4px; overflow:hidden; margin-bottom:8px;">
+                    <div style="height:100%; background:var(--gradient-primary); width: {{ (current_user.loyalty_points / 2000) * 100|round(0) if current_user.loyalty_points < 2000 else 100 }}%;"></div>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--text-muted);">
+                    <span>0 (Bronze)</span>
+                    <span>500 (Silver: 5% off)</span>
+                    <span>2000 (Gold: 10% off)</span>
+                </div>
+            </div>
+        </div>
+        
+        <h3>Transaction History</h3>
+        {% if loyalty_tx %}
+        <table style="width:100%; border-collapse:collapse; margin-top:16px; background:var(--bg-primary); border-radius:var(--radius-md); overflow:hidden; border:1px solid var(--border-light); color:var(--text-main);">
+            <tr style="background:var(--bg-secondary); text-align:left; color:var(--text-main);">
+                <th style="padding:12px 16px; border-bottom:1px solid var(--border-light);">Date</th>
+                <th style="padding:12px 16px; border-bottom:1px solid var(--border-light);">Type</th>
+                <th style="padding:12px 16px; border-bottom:1px solid var(--border-light);">Points</th>
+                <th style="padding:12px 16px; border-bottom:1px solid var(--border-light);">Reference</th>
+            </tr>
+            {% for tx in loyalty_tx %}
+            <tr style="color:var(--text-main);">
+                <td style="padding:12px 16px; border-bottom:1px solid var(--border-light);">{{ tx.created_at[:10] }}</td>
+                <td style="padding:12px 16px; border-bottom:1px solid var(--border-light); text-transform:capitalize; color:{{ 'var(--success)' if tx.transaction_type == 'earned' else 'var(--danger)' }}; font-weight:600;">{{ tx.transaction_type }}</td>
+                <td style="padding:12px 16px; border-bottom:1px solid var(--border-light); font-weight:700;">{{ '+' if tx.transaction_type == 'earned' else '-' }}{{ tx.points }}</td>
+                <td style="padding:12px 16px; border-bottom:1px solid var(--border-light);">Booking #{{ tx.booking_id }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        {% else %}
+        <p style="color:var(--text-muted);">No loyalty transactions yet. Start booking to earn points!</p>
+        {% endif %}
+    </div>
+
+    <!-- VOUCHERS TAB -->
+    <div id="tab-vouchers" class="tab-pane">
+        <h2>Available Vouchers</h2>
+        <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:24px; margin-top:20px;">
+            {% for v in vouchers %}
+            <div style="border:1px dashed var(--primary); border-radius:var(--radius-lg); padding:24px; position:relative; background:rgba(255,56,92,0.02);">
+                <div style="position:absolute; top:-12px; right:20px; background:var(--primary); color:white; padding:4px 12px; border-radius:12px; font-size:12px; font-weight:600;">{{ v.discount_type|capitalize }}</div>
+                <h3 style="font-size:24px; margin:0 0 8px 0; color:var(--text-primary);">
+                    {% if v.discount_type == 'percentage' %}{{ v.discount_value|int }}% OFF
+                    {% else %}Rs. {{ v.discount_value|int }} OFF{% endif %}
+                </h3>
+                <p style="color:var(--text-secondary); margin:0 0 16px 0; font-size:14px;">
+                    {% if v.min_booking_amount > 0 %}On bookings above Rs. {{ v.min_booking_amount|int }}{% else %}No minimum booking value{% endif %}<br>
+                    Valid till: {{ v.expiry_date[:10] }}
+                </p>
+                <div style="display:flex; justify-content:space-between; background:white; padding:12px; border-radius:var(--radius-sm); border:1px solid var(--border-light); align-items:center;">
+                    <strong style="letter-spacing:1px; color:#333;">{{ v.code }}</strong>
+                    <button onclick="navigator.clipboard.writeText('{{ v.code }}'); showToast('Code copied!', 'success');" style="background:none; border:none; color:var(--primary); cursor:pointer; font-weight:600; font-size:13px;">COPY</button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+function switchTab(tabId, el) {
+    document.querySelectorAll('.tab-pane').forEach(img => img.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.getElementById('tab-' + tabId).classList.add('active');
+    if(el) el.classList.add('active');
+    history.replaceState(null, '', '?tab='+tabId);
+}
+// check url param for tab
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.has('tab')) {
+    const tabName = urlParams.get('tab');
+    const b = document.querySelector(`.tab-btn[onclick*="${tabName}"]`);
+    if(b) switchTab(tabName, b);
+}
+
+function removeWishlistItem(id, btn) {
+    fetch('/api/wishlist/toggle/' + id, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success && !data.added) {
+            const card = document.getElementById('wl-card-' + id);
+            if (card) {
+                card.style.opacity = '0';
+                card.style.transform = 'scale(0.95)';
+                card.style.transition = 'all 0.3s ease';
+                setTimeout(() => {
+                    card.remove();
+                    const grid = document.getElementById('wishlist-grid');
+                    if (grid && grid.children.length === 0) location.reload();
+                }, 300);
+            }
+            showToast('Removed from wishlist');
+        }
+    });
+}
+</script>
+
+<!-- Review Modal -->
+<div id="review-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center;">
+    <div style="background:var(--bg-primary); width:100%; max-width:500px; padding:32px; border-radius:var(--radius-lg); position:relative;">
+        <button onclick="closeReviewModal()" style="position:absolute; top:20px; right:20px; background:none; border:none; font-size:24px; cursor:pointer; color:var(--text-secondary);">&times;</button>
+        <h2 style="margin-top:0; margin-bottom:24px;">Rate Your Experience</h2>
+        
+        <input type="hidden" id="review-booking-id">
+        <input type="hidden" id="review-property-id">
+        
+        <div style="margin-bottom:24px;">
+            <label style="display:block; margin-bottom:8px; font-weight:600; color:var(--text-main);">Overall Rating</label>
+            <div id="star-selector" style="font-size:32px; color:#FFC107; cursor:pointer; display:flex; gap:8px;">
+                <i class="far fa-star" data-val="1"></i>
+                <i class="far fa-star" data-val="2"></i>
+                <i class="far fa-star" data-val="3"></i>
+                <i class="far fa-star" data-val="4"></i>
+                <i class="far fa-star" data-val="5"></i>
+            </div>
+            <input type="hidden" id="review-rating" value="0">
+        </div>
+        
+        <div style="margin-bottom:24px;">
+            <label for="review-comment" style="display:block; margin-bottom:8px; font-weight:600; color:var(--text-main);">Share your experience</label>
+            <textarea id="review-comment" rows="4" style="width:100%; padding:12px; border:1px solid var(--border-medium); border-radius:var(--radius-sm); font-family:inherit; resize:vertical;" placeholder="What did you love about your stay?"></textarea>
+        </div>
+        
+        <button id="submit-review-btn" onclick="submitReview()" style="width:100%; background:var(--gradient-primary); color:white; border:none; padding:14px; border-radius:var(--radius-sm); font-weight:700; font-size:16px; cursor:pointer;">
+            Submit Review
+        </button>
+    </div>
+</div>
+
+<script>
+    // Modal Logic
+    function openReviewModal(bookingId, propertyId) {
+        document.getElementById('review-booking-id').value = bookingId;
+        document.getElementById('review-property-id').value = propertyId;
+        document.getElementById('review-rating').value = '0';
+        document.getElementById('review-comment').value = '';
+        
+        const stars = document.querySelectorAll('#star-selector i');
+        stars.forEach(s => { s.classList.remove('fas'); s.classList.add('far'); });
+        
+        document.getElementById('review-modal').style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeReviewModal() {
+        document.getElementById('review-modal').style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+
+    // Star Selection Logic
+    document.querySelectorAll('#star-selector i').forEach(star => {
+        star.addEventListener('click', function() {
+            const val = parseInt(this.getAttribute('data-val'));
+            document.getElementById('review-rating').value = val;
+            document.querySelectorAll('#star-selector i').forEach(s => {
+                const sVal = parseInt(s.getAttribute('data-val'));
+                if (sVal <= val) {
+                    s.classList.remove('far'); s.classList.add('fas');
+                } else {
+                    s.classList.remove('fas'); s.classList.add('far');
+                }
+            });
+        });
+    });
+
+    function submitReview() {
+        const ratingStr = document.getElementById('review-rating').value;
+        const rating = parseInt(ratingStr);
+        if(!rating || rating === 0) {
+            showToast('Please select a star rating first!', 'danger');
+            return;
+        }
+        
+        const payload = {
+            booking_id: document.getElementById('review-booking-id').value,
+            property_id: document.getElementById('review-property-id').value,
+            rating: rating,
+            comment: document.getElementById('review-comment').value
+        };
+        
+        const btn = document.getElementById('submit-review-btn');
+        btn.disabled = true;
+        btn.textContent = 'Submitting...';
+        
+        fetch('/api/reviews', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        })
+        .then(r => r.json())
+        .then(data => {
+            if(!data.success) throw new Error(data.error || 'Failed to submit review');
+            showToast('Review submitted successfully!', 'success');
+            closeReviewModal();
+            setTimeout(() => location.reload(), 1500);
+        })
+        .catch(err => {
+            showToast(err.message, 'danger');
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.textContent = 'Submit Review';
+        });
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}StayNest - Find Your Perfect Stay{% endblock %}
+{% block content %}
+<!-- Hero Section -->
+<section class="hero" id="hero-section">
+    <div class="hero-bg"></div>
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+        <h1>Find places to stay that you will love</h1>
+        <p>Discover entire homes, private rooms, and unique stays around the world</p>
+        <div style="display:flex; gap:16px; justify-content:center; flex-wrap:wrap; margin-top:32px;">
+            <div style="display:flex; align-items:center; gap:10px; background:rgba(255,255,255,0.15); backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,0.3); padding:12px 24px; border-radius:50px; color:white; font-weight:600; font-size:15px;">
+                <i class="fas fa-shield-alt" style="color:#4ade80;"></i> Verified Hosts
+            </div>
+            <div style="display:flex; align-items:center; gap:10px; background:rgba(255,255,255,0.15); backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,0.3); padding:12px 24px; border-radius:50px; color:white; font-weight:600; font-size:15px;">
+                <i class="fas fa-bolt" style="color:#facc15;"></i> Instant Book
+            </div>
+            <div style="display:flex; align-items:center; gap:10px; background:rgba(255,255,255,0.15); backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,0.3); padding:12px 24px; border-radius:50px; color:white; font-weight:600; font-size:15px;">
+                <i class="fas fa-headset" style="color:#60a5fa;"></i> 24/7 Support
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="section" id="categories-section">
+    <div class="categories-bar" id="categories-bar" style="justify-content: center; gap: 40px;">
+        {% for cat in categories %}
+        <a href="/explore?category_id={{ cat.category_id }}" class="category-item" data-id="{{ cat.category_id }}">
+            <i class="fas {{ cat.icon or 'fa-home' }}"></i>
+            <span>{{ cat.name }}</span>
+        </a>
+        {% endfor %}
+    </div>
+</section>
+
+<!-- Featured Properties -->
+<section class="section" id="featured-section">
+    <div class="section-header">
+        <h2>Explore top-rated stays</h2>
+        <a href="/explore">Show all <i class="fas fa-arrow-right"></i></a>
+    </div>
+    <div class="property-grid" id="featured-grid">
+        {% for p in properties %}
+        <a href="/property/{{ p.property_id }}" class="property-card">
+            <div class="card-image-container">
+                <img src="{{ p.primary_image or 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800' }}"
+                     alt="{{ p.title }}" class="card-image" loading="lazy"
+                     onerror="this.src='https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800'">
+                {% if p.is_superhost %}
+                <span class="card-badge">Superhost</span>
+                {% endif %}
+                <button class="card-wishlist {% if p.property_id in wishlist_ids %}active{% endif %}" onclick="event.preventDefault();toggleWishlist({{ p.property_id }}, this)">
+                    <i class="{% if p.property_id in wishlist_ids %}fas{% else %}far{% endif %} fa-heart"></i>
+                </button>
+            </div>
+            <div class="card-info">
+                <div class="card-info-top">
+                    <span class="card-location">{{ p.city }}, {{ p.state }}</span>
+                    <span class="card-rating">
+                        <i class="fas fa-star"></i>
+                        {{ "%.1f"|format(p.average_rating) if p.average_rating else 'New' }}
+                    </span>
+                </div>
+                <div class="card-type">{{ p.title }}</div>
+                <div class="card-price">
+                    <strong>Rs. {{ "{:,.0f}".format(p.price_per_night) }}</strong>
+                    <span>/ night</span>
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+</section>
+
+<!-- Testimonials -->
+<section class="section" id="testimonials-section">
+    <div class="section-header">
+        <h2>What our guests say</h2>
+    </div>
+    <div class="testimonials-grid" style="margin-top: 40px; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px;">
+        <div class="testimonial-card">
+            <div class="testimonial-stars"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i></div>
+            <div class="testimonial-text">"The villa was absolutely stunning! Everything was exactly as described and the host went above and beyond to make our stay memorable. Will definitely book again."</div>
+            <div class="testimonial-author">
+                <div class="testimonial-author-avatar">AS</div>
+                <div>
+                    <div class="testimonial-author-name">Arjun Sharma</div>
+                    <div class="testimonial-author-location">Mumbai, India</div>
+                </div>
+            </div>
+        </div>
+        <div class="testimonial-card">
+            <div class="testimonial-stars"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i></div>
+            <div class="testimonial-text">"StayNest made finding the perfect mountain retreat so easy. The booking process was seamless and the host was incredibly responsive. A truly wonderful experience."</div>
+            <div class="testimonial-author">
+                <div class="testimonial-author-avatar">AG</div>
+                <div>
+                    <div class="testimonial-author-name">Ananya Gupta</div>
+                    <div class="testimonial-author-location">Delhi, India</div>
+                </div>
+            </div>
+        </div>
+        <div class="testimonial-card">
+            <div class="testimonial-stars"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="far fa-star"></i></div>
+            <div class="testimonial-text">"Hosting on StayNest has been a fantastic experience. The platform is intuitive, the dashboard gives great insights, and the support team is always helpful."</div>
+            <div class="testimonial-author">
+                <div class="testimonial-author-avatar">PP</div>
+                <div>
+                    <div class="testimonial-author-name">Priya Patel</div>
+                    <div class="testimonial-author-location">Goa, India</div>
+                </div>
+            </div>
+        </div>
+        <div class="testimonial-card">
+            <div class="testimonial-stars"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i></div>
+            <div class="testimonial-text">"The booking experience could not have been smoother. I loved how transparent the billing and invoice features were! Excellent."</div>
+            <div class="testimonial-author">
+                <div class="testimonial-author-avatar">RK</div>
+                <div>
+                    <div class="testimonial-author-name">Rohan Kumar</div>
+                    <div class="testimonial-author-location">Pune, India</div>
+                </div>
+            </div>
+        </div>
+        <div class="testimonial-card">
+            <div class="testimonial-stars"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i></div>
+            <div class="testimonial-text">"Highly sophisticated calendar system! Planning my family trip for next year was effortless. Found a gorgeous lakehouse thanks to the categories."</div>
+            <div class="testimonial-author">
+                <div class="testimonial-author-avatar">MV</div>
+                <div>
+                    <div class="testimonial-author-name">Meera Verma</div>
+                    <div class="testimonial-author-location">Chennai, India</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+// No hero search script needed — search is on /explore page
+</script>
+{% endblock %}

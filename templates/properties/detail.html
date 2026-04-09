@@ -1,0 +1,710 @@
+{% extends "base.html" %}
+{% block title %}{{ property.title }} - StayNest{% endblock %}
+{% block content %}
+<div class="detail-container">
+    <div class="detail-header">
+        <h1>{{ property.title }}</h1>
+        <div class="detail-meta">
+            <span><i class="fas fa-star"></i> {{ "%.1f"|format(property.average_rating) if property.average_rating else 'New' }}</span>
+            <span class="meta-dot">&middot;</span>
+            <span>{{ property.total_reviews }} reviews</span>
+            <span class="meta-dot">&middot;</span>
+            {% if property.is_superhost %}<span class="superhost-tag"><i class="fas fa-award"></i> Superhost</span><span class="meta-dot">&middot;</span>{% endif %}
+            <span>{{ property.city }}, {{ property.state }}, {{ property.country }}</span>
+        </div>
+        <div class="header-actions" style="margin-left:auto; display:flex; gap:16px;">
+            <button class="action-btn wishlist-toggle-btn {% if is_wishlisted %}active{% endif %}" 
+                    onclick="toggleWishlist({{ property.property_id }}, this)"
+                    style="background:none; border:none; cursor:pointer; font-size:16px; font-weight:600; display:flex; align-items:center; gap:8px; color:var(--text-main);">
+                <i class="{% if is_wishlisted %}fas{% else %}far{% endif %} fa-heart" 
+                   style="color:{% if is_wishlisted %}#ff385c{% else %}inherit{% endif %}; font-size:18px;"></i>
+                <span>{{ 'Saved' if is_wishlisted else 'Save' }}</span>
+            </button>
+            <button class="action-btn" style="background:none; border:none; cursor:pointer; font-size:16px; font-weight:600; display:flex; align-items:center; gap:8px; color:var(--text-main);">
+                <i class="fas fa-share-square"></i>
+                <span>Share</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="image-gallery" id="image-gallery">
+        {% for img in property.images[:5] %}
+        <div {% if loop.first %}class="gallery-main"{% endif %}>
+            <img src="{{ img.image_url }}" alt="{{ img.caption or property.title }}" class="gallery-img"
+                 onerror="this.src='https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800'">
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="detail-body">
+        <div class="detail-main">
+            <div class="host-bar">
+                <div class="host-info">
+                    <h2>Hosted by {{ property.host_first_name }} {{ property.host_last_name }}</h2>
+                    <p>{{ property.max_guests }} guests &middot; {{ property.bedrooms }} bedroom{{ 's' if property.bedrooms != 1 else '' }} &middot; {{ property.beds }} bed{{ 's' if property.beds != 1 else '' }} &middot; {{ property.bathrooms }} bath</p>
+                </div>
+                <div class="host-avatar-lg">{{ property.host_first_name[0] }}{{ property.host_last_name[0] }}</div>
+            </div>
+            {% if property.host_bio %}
+            <div class="host-bio" style="margin-top: -16px; margin-bottom: 24px; color: var(--text-secondary); font-size:15px; line-height:1.5;">
+                {{ property.host_bio }}
+            </div>
+            {% endif %}
+
+            <div class="detail-section">
+                <h3>About this place</h3>
+                <div class="detail-description">{{ property.description }}</div>
+            </div>
+
+            <div class="detail-section">
+                <h3>What this place offers</h3>
+                <div class="amenities-grid">
+                    {% for a in property.amenities %}
+                    <div class="amenity-item">
+                        <i class="fas {{ a.icon or 'fa-check' }}"></i>
+                        <span>{{ a.name }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <h3>About Your Host</h3>
+                <div style="background:var(--bg-secondary); padding:32px; border-radius:var(--radius-lg); border:1px solid var(--border-light); margin-bottom:32px;">
+                    <div style="display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:24px; margin-bottom:24px;">
+                        <div style="display:flex; align-items:center; gap:20px;">
+                            <div style="width:72px; height:72px; background:var(--primary); color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:28px; font-weight:700;">
+                                {{ property.host_first_name[0] }}{{ property.host_last_name[0] }}
+                            </div>
+                            <div>
+                                <h4 style="margin:0 0 6px 0; font-size:24px; font-weight:800;">{{ property.host_first_name }} {{ property.host_last_name }}</h4>
+                                <div style="display:flex; align-items:center; gap:12px; color:var(--text-secondary); font-size:15px; flex-wrap:wrap;">
+                                    {% if property.is_superhost %}<span style="color:#FFC107; font-weight:600;"><i class="fas fa-medal"></i> Superhost</span> &middot;{% endif %}
+                                    <span class="host-joined-date" data-date="{{ property.host_since }}">Joined recently</span>
+                                </div>
+                            </div>
+                        </div>
+                        <button onclick="showToast('Message sent to host!')" style="background:white; color:var(--text-main); border:1px solid var(--border-main); padding:10px 24px; border-radius:var(--radius-sm); font-weight:700; cursor:pointer; font-size:15px; transition:all 0.2s;">
+                            Contact Host
+                        </button>
+                    </div>
+                    
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); gap:16px; margin-bottom:24px; border-top:1px solid var(--border-light); border-bottom:1px solid var(--border-light); padding:20px 0;">
+                        <div style="text-align:center;">
+                            <div style="font-size:20px; font-weight:800; margin-bottom:4px;">{{ property.host_stats['reviews'] }}</div>
+                            <div style="font-size:13px; color:var(--text-secondary); text-transform:uppercase; font-weight:600;">Reviews</div>
+                        </div>
+                        <div style="text-align:center; border-left:1px solid var(--border-light);">
+                            <div style="font-size:20px; font-weight:800; margin-bottom:4px;">{{ property.host_stats['listings'] }}</div>
+                            <div style="font-size:13px; color:var(--text-secondary); text-transform:uppercase; font-weight:600;">Properties</div>
+                        </div>
+                        <div style="text-align:center; border-left:1px solid var(--border-light);">
+                            <div style="font-size:20px; font-weight:800; margin-bottom:4px;">{{ property.host_stats['completed_bookings'] }}</div>
+                            <div style="font-size:13px; color:var(--text-secondary); text-transform:uppercase; font-weight:600;">Completed</div>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom:20px;">
+                        <h5 style="margin:0 0 12px 0; font-size:16px;">About me</h5>
+                        <p style="margin:0; color:var(--text-secondary); line-height:1.6; font-size:15px;">
+                            {{ property.host_bio or "Hi, I'm " ~ property.host_first_name ~ "! I love hosting guests and making sure every stay is comfortable and memorable." }}
+                        </p>
+                    </div>
+                    
+                    <div style="display:flex; align-items:center; gap:24px; font-size:14px; background:var(--bg-primary); padding:16px; border-radius:var(--radius-sm);">
+                        <div>
+                            <strong style="color:var(--text-main); margin-right:6px;">Response rate:</strong>
+                            <span style="color:var(--text-secondary);">{{ property.response_rate }}%</span>
+                        </div>
+                        <div>
+                            <strong style="color:var(--text-main); margin-right:6px;">Response time:</strong>
+                            <span style="color:var(--text-secondary);">Under {{ property.response_time_hours }} hour{{ 's' if property.response_time_hours > 1 else '' }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <h3><i class="fas fa-star"></i> {{ "%.1f"|format(property.average_rating) if property.average_rating else 'No' }} &middot; {{ property.total_reviews }} review{{ 's' if property.total_reviews != 1 else '' }}</h3>
+                {% for review in property.reviews %}
+                <div class="review-card">
+                    <div class="review-header">
+                        <div class="review-avatar">{{ review.first_name[0] }}{{ review.last_name[0] }}</div>
+                        <div>
+                            <div class="review-author">{{ review.first_name }} {{ review.last_name }}</div>
+                            <div class="review-date">{{ review.created_at[:10] if review.created_at else '' }}</div>
+                        </div>
+                    </div>
+                    <div class="review-stars">{% for i in range(review.rating) %}<i class="fas fa-star"></i>{% endfor %}</div>
+                    <div class="review-text">{{ review.comment }}</div>
+                </div>
+                {% endfor %}
+                {% if not property.reviews %}
+                <p style="color:var(--text-muted);padding:20px 0;">No reviews yet. Be the first to review!</p>
+                {% endif %}
+            </div>
+
+            <div class="detail-section">
+                <h3>Cancellation policy</h3>
+                <p style="font-size:15px;color:var(--text-secondary);">
+                    <strong>{{ property.cancellation_policy_name or 'Moderate' }}</strong>:
+                    {{ property.cancellation_policy_desc or 'Full refund 5 days before check-in, 50% after.' }}
+                </p>
+            </div>
+        </div>
+
+        <!-- Booking Sidebar -->
+        <div>
+            <div class="booking-card" id="booking-card">
+                <div class="booking-price">
+                    Rs. {{ "{:,.0f}".format(property.price_per_night) }} <span>/ night</span>
+                </div>
+                <input type="hidden" id="price-per-night" value="{{ property.price_per_night }}">
+                <input type="hidden" id="cleaning-fee" value="{{ property.cleaning_fee or 0 }}">
+                <input type="hidden" id="service-pct" value="{{ property.service_fee_percentage or 14 }}">
+
+                <div class="booking-dates">
+                    <div class="booking-date-field">
+                        <label>Check-in</label>
+                        <input type="date" id="checkin-date" onchange="updateBookingPrice()">
+                    </div>
+                    <div class="booking-date-field">
+                        <label>Check-out</label>
+                        <input type="date" id="checkout-date" onchange="updateBookingPrice()">
+                    </div>
+                </div>
+
+                <div class="booking-guests" style="position:relative;">
+                    <label>Guests</label>
+                    <div class="guest-selector" id="guest-trigger" style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="toggleGuestPopover()">
+                        <span class="guest-count" id="guest-count-label">1 guest</span>
+                        <i class="fas fa-chevron-down" style="color:var(--text-muted);"></i>
+                    </div>
+                    
+                    <div class="shadcn-popover" id="guest-popover">
+                        <div class="guest-popover-row">
+                            <div class="guest-type-info">
+                                <h4>Adults</h4>
+                                <p>Age 13+</p>
+                            </div>
+                            <div class="guest-controls">
+                                <button class="guest-btn" onclick="updateGuestType('adults', -1)" id="btn-adults-minus" disabled>-</button>
+                                <span id="count-adults" style="width:16px; text-align:center;">1</span>
+                                <button class="guest-btn" onclick="updateGuestType('adults', 1)" id="btn-adults-plus">+</button>
+                            </div>
+                        </div>
+                        <div class="guest-popover-row">
+                            <div class="guest-type-info">
+                                <h4>Children</h4>
+                                <p>Ages 2-12</p>
+                            </div>
+                            <div class="guest-controls">
+                                <button class="guest-btn" onclick="updateGuestType('children', -1)" id="btn-children-minus" disabled>-</button>
+                                <span id="count-children" style="width:16px; text-align:center;">0</span>
+                                <button class="guest-btn" onclick="updateGuestType('children', 1)" id="btn-children-plus">+</button>
+                            </div>
+                        </div>
+                        <div class="guest-popover-row">
+                            <div class="guest-type-info">
+                                <h4>Infants</h4>
+                                <p>Under 2</p>
+                            </div>
+                            <div class="guest-controls">
+                                <button class="guest-btn" onclick="updateGuestType('infants', -1)" id="btn-infants-minus" disabled>-</button>
+                                <span id="count-infants" style="width:16px; text-align:center;">0</span>
+                                <button class="guest-btn" onclick="updateGuestType('infants', 1)" id="btn-infants-plus">+</button>
+                            </div>
+                        </div>
+                    </div>
+                    <input type="hidden" id="guest-input" value="1">
+                </div>
+
+                <div class="booking-summary" id="booking-summary" style="display:none; margin-bottom:16px;"></div>
+                
+                <div id="voucher-section" style="display:none; margin-bottom:16px; border-top:1px solid var(--border-light); padding-top:16px;">
+                    <div style="display:flex; gap:8px;">
+                        <input type="text" id="voucher-input" placeholder="Have a voucher code?" class="form-control" style="flex:1; padding:10px 14px; border:1px solid var(--border-medium); border-radius:var(--radius-sm); font-size:14px;">
+                        <button onclick="applyVoucher()" style="background:var(--bg-secondary); border:1px solid var(--border-medium); padding:0 16px; border-radius:var(--radius-sm); cursor:pointer; font-weight:600;">Apply</button>
+                    </div>
+                    <div id="voucher-feedback" style="font-size:13px; margin-top:8px;"></div>
+                </div>
+
+                <div id="loyalty-section" style="display:none; margin-bottom:16px;">
+                    {% if current_user and current_user.loyalty_points > 0 %}
+                    <label style="display:flex; align-items:center; gap:8px; font-size:14px; cursor:pointer;">
+                        <input type="checkbox" id="redeem-points" onchange="updateBookingSummary()"> 
+                        Redeem Loyalty Discount ({% if current_user.loyalty_points >= 2000 %}10% Gold{% elif current_user.loyalty_points >= 500 %}5% Silver{% else %}0% Bronze{% endif %})
+                    </label>
+                    {% endif %}
+                </div>
+
+                <button class="btn-book" id="book-btn" disabled onclick="submitBookingEnhanced({{ property.property_id }})">
+                    Request to Book
+                </button>
+                <p style="text-align:center;font-size:13px;color:var(--text-muted);">You won't be charged yet</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- PAYMENT MODAL -->
+<div id="payment-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:var(--bg-primary); z-index:9999; overflow-y:auto;">
+    <div style="max-width:900px; margin:40px auto; display:grid; grid-template-columns:1fr 400px; gap:40px; padding:20px;">
+        <!-- Left: Payment Methods -->
+        <div>
+            <button onclick="closePaymentModal()" style="background:none; border:none; padding:0; cursor:pointer; font-size:24px; margin-bottom:24px;"><i class="fas fa-arrow-left"></i></button>
+            <h2 style="margin-bottom:24px;">Complete your booking</h2>
+            
+            <div class="tabs-header" style="margin-bottom:24px; border-bottom:1px solid var(--border-light);">
+                <button class="tab-btn active" id="btn-upi" onclick="switchPayTab('upi')">UPI</button>
+                <button class="tab-btn" id="btn-card" onclick="switchPayTab('card')">Credit/Debit Card</button>
+                <button class="tab-btn" id="btn-net" onclick="switchPayTab('net')">Net Banking</button>
+            </div>
+            
+            <div id="tab-upi" class="pay-tab">
+                <div style="text-align:center; padding:20px 0;">
+                    <img id="qr-image" src="" style="width:200px; height:200px; border:1px solid var(--border-light); border-radius:12px; margin-bottom:16px;">
+                    <p style="color:var(--text-secondary); margin-bottom:16px;">Scan with any UPI app</p>
+                    <div style="display:flex; align-items:center; gap:8px; justify-content:center; margin-bottom:16px;">
+                        <hr style="flex:1; border:none; border-top:1px dashed var(--border-medium);">
+                        <span style="color:var(--text-muted); font-size:14px; text-transform:uppercase;">or</span>
+                        <hr style="flex:1; border:none; border-top:1px dashed var(--border-medium);">
+                    </div>
+                    <input type="text" placeholder="Enter UPI ID (eg. user@okaxis)" style="width:100%; max-width:300px; padding:12px; border:1px solid var(--border-medium); border-radius:var(--radius-sm); margin-bottom:16px;" value="staynest@okaxis">
+                    <button onclick="processPayment('upi')" style="background:var(--gradient-primary); color:white; border:none; padding:14px 24px; border-radius:var(--radius-sm); font-weight:700; cursor:pointer; width:100%; max-width:300px;">Verify & Pay</button>
+                </div>
+            </div>
+            
+            <div id="tab-card" class="pay-tab" style="display:none;">
+                <div style="margin-bottom:16px; position:relative;">
+                    <label style="display:block; margin-bottom:8px; font-weight:600; font-size:14px;">Card Number</label>
+                    <input type="text" placeholder="0000 0000 0000 0000" style="width:100%; padding:14px 14px 14px 40px; border:1px solid var(--border-medium); border-radius:var(--radius-sm);" value="4111 2222 3333 4444">
+                    <i class="fab fa-cc-visa" style="position:absolute; left:14px; top:42px; font-size:20px; color:var(--primary);"></i>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+                    <div>
+                        <label style="display:block; margin-bottom:8px; font-weight:600; font-size:14px;">Expiry Date</label>
+                        <input type="text" placeholder="MM/YY" style="width:100%; padding:14px; border:1px solid var(--border-medium); border-radius:var(--radius-sm);" value="12/28">
+                    </div>
+                    <div>
+                        <label style="display:block; margin-bottom:8px; font-weight:600; font-size:14px;">CVV</label>
+                        <input type="password" placeholder="123" style="width:100%; padding:14px; border:1px solid var(--border-medium); border-radius:var(--radius-sm);" value="123">
+                    </div>
+                </div>
+                <div style="margin-bottom:24px;">
+                    <label style="display:block; margin-bottom:8px; font-weight:600; font-size:14px;">Cardholder Name</label>
+                    <input type="text" placeholder="Name on card" style="width:100%; padding:14px; border:1px solid var(--border-medium); border-radius:var(--radius-sm);" value="{{ current_user.first_name if current_user else 'Guest' }}">
+                </div>
+                <button id="btn-pay-card" onclick="processPayment('card')" style="background:var(--gradient-primary); color:white; border:none; padding:14px 24px; border-radius:var(--radius-sm); font-weight:700; cursor:pointer; width:100%;">Pay Amount</button>
+            </div>
+            
+            <div id="tab-net" class="pay-tab" style="display:none;">
+                <label style="display:block; margin-bottom:8px; font-weight:600; font-size:14px;">Select Bank</label>
+                <select style="width:100%; padding:14px; border:1px solid var(--border-medium); border-radius:var(--radius-sm); margin-bottom:24px; font-size:15px; cursor:pointer;">
+                    <option>State Bank of India</option>
+                    <option>HDFC Bank</option>
+                    <option>ICICI Bank</option>
+                    <option>Axis Bank</option>
+                    <option>Kotak Mahindra Bank</option>
+                    <option>Punjab National Bank</option>
+                </select>
+                <button onclick="processPayment('netbanking')" style="background:var(--gradient-primary); color:white; border:none; padding:14px 24px; border-radius:var(--radius-sm); font-weight:700; cursor:pointer; width:100%;">Proceed to Net Banking</button>
+            </div>
+        </div>
+        
+        <!-- Right: Order Summary -->
+        <div>
+            <div style="border:1px solid var(--border-light); border-radius:var(--radius-lg); padding:24px; position:sticky; top:24px; box-shadow:var(--shadow-sm);">
+                <div style="display:flex; gap:16px; margin-bottom:24px; border-bottom:1px solid var(--border-light); padding-bottom:24px;">
+                    <img src="{{ property.primary_image or 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800' }}" style="width:100px; height:80px; object-fit:cover; border-radius:var(--radius-sm);">
+                    <div>
+                        <h3 style="margin:0 0 4px 0; font-size:15px;">{{ property.title }}</h3>
+                        <div style="font-size:14px; color:var(--text-secondary);">
+                            {{ property.property_type|title }}
+                        </div>
+                        <div style="font-size:12px; color:var(--text-secondary); margin-top:4px;">
+                            <i class="fas fa-star" style="color:#FFC107;"></i> {{ "%.1f"|format(property.average_rating) if property.average_rating else 'New' }}
+                        </div>
+                    </div>
+                </div>
+                <h3 style="margin:0 0 16px 0; font-size:18px;">Price details</h3>
+                <div id="modal-summary" style="font-size:15px; color:var(--text-main);"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- PROCESSING SCREEN -->
+<div id="processing-screen" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.9); z-index:10000; justify-content:center; align-items:center; flex-direction:column; backdrop-filter: blur(4px);">
+    <div class="loading-spinner" style="width:64px; height:64px; border-width:6px; border-color:var(--primary) var(--border-light) var(--border-light) var(--border-light); border-radius:50%; margin-bottom:24px; animation:spin 1s linear infinite;"></div>
+    <h2 style="margin:0 0 8px 0; color:var(--text-primary);">Processing your payment securely...</h2>
+    <p style="color:var(--text-secondary); margin:0;">Please don't close this window.</p>
+</div>
+
+<!-- SUCCESS SCREEN -->
+<div id="success-screen" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:white; z-index:10000; overflow-y:auto;">
+    <div style="max-width:600px; margin:80px auto; text-align:center;">
+        <div style="width:100px; height:100px; background:#e8fdf0; color:#008A05; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:48px; margin:0 auto 24px auto; box-shadow:0 0 0 10px rgba(0, 138, 5, 0.1);">
+            <i class="fas fa-check"></i>
+        </div>
+        <h1 style="color:#008A05; margin-bottom:8px;">Payment Successful!</h1>
+        <p style="color:var(--text-secondary); font-size:18px; margin-bottom:32px;">Your booking is confirmed.</p>
+        
+        <div style="background:var(--bg-secondary); border:1px solid var(--border-light); border-radius:var(--radius-md); padding:24px; text-align:left; margin-bottom:32px;">
+            <div style="font-size:14px; color:var(--text-muted); text-transform:uppercase; font-weight:700; margin-bottom:8px;">Booking Reference</div>
+            <div id="success-ref" style="font-size:24px; font-weight:800; font-family:monospace; margin-bottom:24px; color:var(--text-main);"></div>
+            
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                <div>
+                    <div style="font-size:13px; color:var(--text-secondary);">Check-in</div>
+                    <div id="success-cin" style="font-weight:600;"></div>
+                </div>
+                <div>
+                    <div style="font-size:13px; color:var(--text-secondary);">Check-out</div>
+                    <div id="success-cout" style="font-weight:600;"></div>
+                </div>
+                <div>
+                    <div style="font-size:13px; color:var(--text-secondary);">Guests</div>
+                    <div id="success-guests" style="font-weight:600;"></div>
+                </div>
+                <div>
+                    <div style="font-size:13px; color:var(--text-secondary);">Total Paid</div>
+                    <div id="success-total" style="font-weight:600; color:var(--primary);"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div style="display:flex; gap:16px; justify-content:center;">
+            <button onclick="downloadGuestRawInvoice()" style="background:white; color:var(--text-main); border:1px solid var(--border-medium); padding:12px 24px; border-radius:var(--radius-sm); font-weight:700; cursor:pointer; font-size:15px; display:flex; align-items:center; gap:8px;">
+                <i class="fas fa-download"></i> Download Invoice
+            </button>
+            <a href="/my-account?tab=bookings" style="background:var(--gradient-primary); color:white; padding:12px 24px; border-radius:var(--radius-sm); font-weight:700; cursor:pointer; font-size:15px; text-decoration:none; display:inline-block;">View My Bookings</a>
+        </div>
+    </div>
+</div>
+
+<script>
+let guests = { adults: 1, children: 0, infants: 0 };
+const maxGuests = {{ property.max_guests }};
+let voucherDiscount = 0;
+let loyaltyPct = {% if current_user %}{% if current_user.loyalty_points >= 2000 %}0.10{% elif current_user.loyalty_points >= 500 %}0.05{% else %}0{% endif %}{% else %}0{% endif %};
+let appliedVoucherCode = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('checkin-date').min = today;
+    document.getElementById('checkout-date').min = today;
+    document.getElementById('checkin-date').addEventListener('change', function() {
+        document.getElementById('checkout-date').min = this.value;
+        updateBookingSummary();
+    });
+    document.getElementById('checkout-date').addEventListener('change', updateBookingSummary);
+    
+    // override global JS click off handling for popover
+    document.addEventListener('click', (e) => {
+        if(!e.target.closest('#guest-trigger') && !e.target.closest('#guest-popover')) {
+            document.getElementById('guest-popover').classList.remove('active');
+        }
+    });
+
+    // Format host joined date
+    document.querySelectorAll('.host-joined-date').forEach(el => {
+        const dStr = el.getAttribute('data-date');
+        if (dStr) {
+            const d = new Date(dStr);
+            const m = d.toLocaleString('default', { month: 'long' });
+            el.textContent = `Member since ${m} ${d.getFullYear()}`;
+        }
+    });
+});
+
+function toggleGuestPopover() {
+    document.getElementById('guest-popover').classList.toggle('active');
+}
+
+function updateGuestType(type, delta) {
+    const total = guests.adults + guests.children;
+    if (type !== 'infants' && delta > 0 && total >= maxGuests) return;
+    
+    guests[type] = Math.max((type==='adults'?1:0), guests[type] + delta);
+    document.getElementById(`count-${type}`).textContent = guests[type];
+    
+    // Update button states
+    const newTotal = guests.adults + guests.children;
+    document.getElementById('btn-adults-minus').disabled = guests.adults <= 1;
+    document.getElementById('btn-children-minus').disabled = guests.children <= 0;
+    document.getElementById('btn-infants-minus').disabled = guests.infants <= 0;
+    
+    document.getElementById('btn-adults-plus').disabled = newTotal >= maxGuests;
+    document.getElementById('btn-children-plus').disabled = newTotal >= maxGuests;
+    
+    // Update label
+    const t = guests.adults + guests.children + guests.infants;
+    document.getElementById('guest-count-label').textContent = `${t} guest${t>1?'s':''}`;
+    document.getElementById('guest-input').value = t;
+}
+
+function updateBookingSummary() {
+    const cin = document.getElementById('checkin-date').value;
+    const cout = document.getElementById('checkout-date').value;
+    const btn = document.getElementById('book-btn');
+    const summary = document.getElementById('booking-summary');
+    
+    if(!cin || !cout || cin >= cout) {
+        btn.disabled = true; summary.style.display = 'none';
+        document.getElementById('voucher-section').style.display='none';
+        document.getElementById('loyalty-section').style.display='none';
+        return;
+    }
+    
+    const nights = Math.ceil((new Date(cout) - new Date(cin)) / 86400000);
+    const ppn = parseFloat(document.getElementById('price-per-night').value);
+    const cf = parseFloat(document.getElementById('cleaning-fee').value);
+    const base = nights * ppn;
+    
+    let sf = parseFloat(document.getElementById('service-pct').value) / 100 * base;
+    
+    // Loyalty logic
+    const redeem = document.getElementById('redeem-points') && document.getElementById('redeem-points').checked;
+    let loyaltyDiscount = 0;
+    if (redeem) {
+        loyaltyDiscount = sf * loyaltyPct; 
+        sf = sf - loyaltyDiscount; // Service fee discount
+    }
+    
+    let total = base + cf + sf - voucherDiscount;
+    if (total < 0) total = 0;
+
+    summary.innerHTML = `
+        <div class="summary-row"><span>Rs. ${ppn.toLocaleString()} x ${nights} nights</span><span>Rs. ${base.toLocaleString()}</span></div>
+        ${cf > 0 ? `<div class="summary-row"><span>Cleaning fee</span><span>Rs. ${cf.toLocaleString()}</span></div>` : ''}
+        <div class="summary-row"><span>StayNest service fee</span><span>Rs. ${sf.toLocaleString(undefined, {maximumFractionDigits:0})}</span></div>
+        ${redeem && loyaltyDiscount > 0 ? `<div class="summary-row" style="color:var(--primary);"><span>Loyalty Discount</span><span>- Rs. ${loyaltyDiscount.toLocaleString(undefined, {maximumFractionDigits:0})}</span></div>` : ''}
+        ${voucherDiscount > 0 ? `<div class="summary-row" style="color:var(--success);"><span>Voucher Discount</span><span>- Rs. ${voucherDiscount.toLocaleString()}</span></div>` : ''}
+        <div class="summary-row total"><span>Total</span><span>Rs. ${total.toLocaleString(undefined, {maximumFractionDigits:0})}</span></div>
+    `;
+    summary.style.display = 'block';
+    
+    // only show voucher/loyalty if user is logged in
+    {% if current_user %}
+    document.getElementById('voucher-section').style.display = 'block';
+    document.getElementById('loyalty-section').style.display = 'block';
+    btn.disabled = false;
+    {% else %}
+    btn.textContent = 'Log in to book';
+    btn.disabled = false; // It will bounce to login
+    {% endif %}
+}
+
+function applyVoucher() {
+    const code = document.getElementById('voucher-input').value;
+    const cin = document.getElementById('checkin-date').value;
+    const cout = document.getElementById('checkout-date').value;
+    const nights = Math.ceil((new Date(cout) - new Date(cin)) / 86400000);
+    const ppn = parseFloat(document.getElementById('price-per-night').value);
+    const cf = parseFloat(document.getElementById('cleaning-fee').value);
+    const base = nights * ppn;
+    const total = base + cf + (parseFloat(document.getElementById('service-pct').value)/100 * base);
+
+    fetch('/api/apply-voucher', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({code, total})
+    }).then(r=>r.json()).then(d=>{
+        const feed = document.getElementById('voucher-feedback');
+        if(d.success) {
+            voucherDiscount = d.discount;
+            appliedVoucherCode = code;
+            feed.textContent = d.message;
+            feed.style.color = 'var(--success)';
+            updateBookingSummary();
+        } else {
+            feed.textContent = d.error;
+            feed.style.color = 'var(--danger)';
+            voucherDiscount = 0; appliedVoucherCode = null;
+            updateBookingSummary();
+        }
+    });
+}
+
+// --- MODAL & PAYMENT LOGIC ---
+
+let bookingPayload = null;
+let currentTotalAmount = 0;
+let successBookingData = {};
+
+function switchPayTab(tabId) {
+    document.querySelectorAll('.pay-tab').forEach(t => t.style.display = 'none');
+    document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-' + tabId).style.display = 'block';
+    document.getElementById('btn-' + tabId).classList.add('active');
+}
+
+function submitBookingEnhanced(pid) {
+    {% if not current_user %}
+    window.location.href = '/login?next=/properties/' + pid;
+    return;
+    {% endif %}
+    
+    // Gather values
+    const cin = document.getElementById('checkin-date').value;
+    const cout = document.getElementById('checkout-date').value;
+    const nights = Math.ceil((new Date(cout) - new Date(cin)) / 86400000);
+    const ppn = parseFloat(document.getElementById('price-per-night').value);
+    const cf = parseFloat(document.getElementById('cleaning-fee').value);
+    const base = nights * ppn;
+    
+    let sf = parseFloat(document.getElementById('service-pct').value) / 100 * base;
+    const redeem = document.getElementById('redeem-points') && document.getElementById('redeem-points').checked;
+    if (redeem) sf = sf - (sf * loyaltyPct);
+    
+    let total = base + cf + sf - voucherDiscount;
+    if(total < 0) total = 0;
+    
+    currentTotalAmount = total;
+    
+    bookingPayload = {
+        property_id: pid, check_in: cin, check_out: cout,
+        num_guests: guests.adults + guests.children + guests.infants,
+        price_per_night: ppn, cleaning_fee: cf, service_fee: sf,
+        total_price: total, special_requests: "Simulated Booking from Frontend"
+    };
+
+    // Populate modal summary exactly as the sidebar
+    document.getElementById('modal-summary').innerHTML = document.getElementById('booking-summary').innerHTML;
+    
+    // Update dynamic QR amount & button
+    const upiUrl = `upi://pay?pa=staynest@upi&pn=StayNest&am=${total.toFixed(2)}&cu=INR`;
+    document.getElementById('qr-image').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=` + encodeURIComponent(upiUrl);
+    document.getElementById('btn-pay-card').textContent = `Pay Rs. ${total.toLocaleString(undefined, {maximumFractionDigits:0})}`;
+    
+    // Show Modal
+    document.body.style.overflow = 'hidden';
+    document.getElementById('payment-modal').style.display = 'block';
+}
+
+function closePaymentModal() {
+    document.body.style.overflow = 'auto';
+    document.getElementById('payment-modal').style.display = 'none';
+}
+
+function processPayment(method) {
+    document.getElementById('processing-screen').style.display = 'flex';
+    
+    // Map frontend methods to DB constraints
+    let dbMethod = method;
+    if (method === 'card') dbMethod = 'credit_card';
+    if (method === 'netbanking') dbMethod = 'net_banking';
+    
+    // Simulate 2.5s secure processing
+    setTimeout(() => {
+        fetch('/api/bookings', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(bookingPayload)
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) throw new Error(data.error);
+            
+            const bookingId = data.booking_id;
+            const refId = "SN-" + Date.now().toString().slice(-8);
+            const txnId = "SIM-TXN-" + Date.now();
+            
+            return fetch('/api/payment/confirm', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    booking_id: bookingId,
+                    amount: currentTotalAmount,
+                    method: dbMethod,
+                    payment_ref: txnId
+                })
+            }).then(r2 => r2.json()).then(confirmData => {
+                if(!confirmData.success) throw new Error(confirmData.error);
+                return { bookingId, refId, txnId };
+            });
+        })
+        .then(res => {
+            document.getElementById('processing-screen').style.display = 'none';
+            document.getElementById('payment-modal').style.display = 'none';
+            document.getElementById('success-screen').style.display = 'block';
+            
+            document.getElementById('success-ref').textContent = res.refId;
+            document.getElementById('success-cin').textContent = bookingPayload.check_in;
+            document.getElementById('success-cout').textContent = bookingPayload.check_out;
+            document.getElementById('success-guests').textContent = bookingPayload.num_guests + " Guests";
+            document.getElementById('success-total').textContent = "Rs. " + currentTotalAmount.toLocaleString(undefined, {maximumFractionDigits:0});
+            
+            successBookingData = {
+                refId: res.refId, check_in: bookingPayload.check_in,
+                check_out: bookingPayload.check_out, num_guests: bookingPayload.num_guests,
+                total: currentTotalAmount, txnId: res.txnId
+            };
+            
+            // Auto redirect after a brief moment so they can see success
+            setTimeout(() => {
+                window.location.href = '/my-account?tab=bookings';
+            }, 3000);
+        })
+        .catch(err => {
+            document.getElementById('processing-screen').style.display = 'none';
+            showToast(err.message || 'Payment Failed', 'danger');
+        });
+    }, 2500);
+}
+
+function downloadGuestRawInvoice() {
+    // Load jsPDF if not loaded
+    if (typeof window.jspdf === 'undefined') {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+        s.onload = () => generateGuestPDF();
+        document.head.appendChild(s);
+    } else {
+        generateGuestPDF();
+    }
+}
+
+function generateGuestPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const L = 20, W = 170;
+    
+    // Header
+    doc.setFillColor(255, 56, 92);
+    doc.rect(0, 0, 210, 28, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(20); doc.setFont('helvetica', 'bold');
+    doc.text('StayNest', L, 18);
+    doc.setFontSize(10); doc.setFont('helvetica', 'normal');
+    doc.text('Booking Receipt', 210 - L, 18, { align: 'right' });
+    
+    doc.setTextColor(40, 40, 40);
+    let y = 40;
+    
+    doc.setFontSize(12); doc.setFont('helvetica', 'bold');
+    doc.text('Booking Confirmed', L, y); y += 7;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+    doc.text('Ref ID: ' + successBookingData.refId, L, y); y += 5;
+    doc.text('Guest Name: {{ current_user.first_name if current_user }} {{ current_user.last_name if current_user }}', L, y); y += 5;
+    doc.text('Payment TXN: ' + successBookingData.txnId, L, y); y += 12;
+    
+    doc.setDrawColor(220, 220, 220); doc.line(L, y, L + W, y); y += 8;
+    
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
+    doc.text('Property Details', L, y); y += 7;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+    doc.text('Name:', L, y); doc.text('{{ property.title|escape }}', L + 40, y); y += 6;
+    doc.text('Check-in:', L, y); doc.text(successBookingData.check_in, L + 40, y); y += 6;
+    doc.text('Check-out:', L, y); doc.text(successBookingData.check_out, L + 40, y); y += 6;
+    doc.text('Guests:', L, y); doc.text(String(successBookingData.num_guests), L + 40, y); y += 12;
+    
+    doc.setDrawColor(220, 220, 220); doc.setFillColor(250, 250, 250);
+    doc.roundedRect(L, y, W, 24, 3, 3, 'FD'); y += 8;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(12);
+    doc.text('Total Amount Paid:', L + 4, y);
+    doc.setTextColor(0, 138, 5);
+    doc.text('Rs. ' + successBookingData.total.toLocaleString('en-IN', {maximumFractionDigits:0}), L + W - 4, y, {align:'right'});
+    
+    doc.save('StayNest_Receipt_' + successBookingData.refId + '.pdf');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Invoice - StayNest{% endblock %}
+{% block content %}
+<div class="invoice-container">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+        <h1 style="font-size:24px;">Invoice</h1>
+        <a href="/api/bookings/{{ invoice.booking_id }}/invoice" class="btn-primary"><i class="fas fa-download"></i> Download PDF</a>
+    </div>
+    <div class="invoice-card">
+        <div class="invoice-header">
+            <div><div class="invoice-logo">StayNest</div><p style="color:var(--text-muted);margin-top:4px;">Tax Invoice</p></div>
+            <div class="invoice-details"><p><strong>{{ invoice.invoice_number or 'N/A' }}</strong></p><p>{{ invoice.paid_at or 'N/A' }}</p></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-bottom:24px;">
+            <div><h4 style="font-size:13px;color:var(--text-muted);margin-bottom:8px;">GUEST</h4><p style="font-weight:600;">{{ invoice.guest_first_name }} {{ invoice.guest_last_name }}</p><p style="font-size:14px;color:var(--text-muted);">{{ invoice.guest_email }}</p></div>
+            <div><h4 style="font-size:13px;color:var(--text-muted);margin-bottom:8px;">HOST</h4><p style="font-weight:600;">{{ invoice.host_first_name }} {{ invoice.host_last_name }}</p><p style="font-size:14px;color:var(--text-muted);">{{ invoice.host_email }}</p></div>
+        </div>
+        <div style="background:var(--bg-secondary);border-radius:var(--radius-sm);padding:20px;margin-bottom:24px;">
+            <h4 style="font-weight:600;margin-bottom:8px;">{{ invoice.property_title }}</h4>
+            <p style="color:var(--text-muted);font-size:14px;">{{ invoice.address }}, {{ invoice.city }}, {{ invoice.state }}</p>
+        </div>
+        <table class="invoice-table">
+            <thead><tr><th>Description</th><th>Details</th><th style="text-align:right;">Amount</th></tr></thead>
+            <tbody>
+                <tr><td>Accommodation</td><td>Rs. {{ "{:,.0f}".format(invoice.price_per_night or 0) }} x {{ invoice.total_nights }} nights</td><td style="text-align:right;">Rs. {{ "{:,.0f}".format((invoice.price_per_night or 0) * (invoice.total_nights or 0)) }}</td></tr>
+                <tr><td>Cleaning Fee</td><td>One-time</td><td style="text-align:right;">Rs. {{ "{:,.0f}".format(invoice.cleaning_fee or 0) }}</td></tr>
+                <tr><td>Service Fee</td><td>Platform fee</td><td style="text-align:right;">Rs. {{ "{:,.0f}".format(invoice.service_fee or 0) }}</td></tr>
+            </tbody>
+        </table>
+        <div style="text-align:right;padding:20px 0;">
+            <span style="font-size:16px;color:var(--text-muted);">Total: </span>
+            <span class="invoice-total">Rs. {{ "{:,.0f}".format(invoice.total_price or 0) }}</span>
+        </div>
+    </div>
+</div>
+{% endblock %}

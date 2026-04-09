@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if property else 'New' }} Listing - StayNest{% endblock %}
+{% block content %}
+<div class="listing-form-container">
+    <h1>{{ 'Edit Listing' if property else 'Create New Listing' }}</h1>
+    <form id="listing-form" onsubmit="return saveListing(event)">
+        <div class="form-section">
+            <h3>Basic Information</h3>
+            <div class="form-group">
+                <label>Title</label>
+                <input type="text" id="lst-title" value="{{ property.title if property else '' }}" placeholder="Give your place a catchy title" required>
+            </div>
+            <div class="form-group">
+                <label>Description</label>
+                <textarea id="lst-description" rows="5" placeholder="Describe what makes your place special" required>{{ property.description if property else '' }}</textarea>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Property Type</label>
+                    <select id="lst-type" required>
+                        {% for t in ['apartment','house','villa','cabin','cottage','loft','studio','resort','farmhouse','treehouse','houseboat','castle'] %}
+                        <option value="{{ t }}" {% if property and property.property_type == t %}selected{% endif %}>{{ t|capitalize }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
+                    <select id="lst-category">
+                        <option value="">Select category</option>
+                        {% for c in categories %}
+                        <option value="{{ c.category_id }}" {% if property and property.category_id == c.category_id %}selected{% endif %}>{{ c.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="form-section">
+            <h3>Location</h3>
+            <div class="form-group"><label>Address</label><input type="text" id="lst-address" value="{{ property.address if property else '' }}" required></div>
+            <div class="form-row">
+                <div class="form-group"><label>City</label><input type="text" id="lst-city" value="{{ property.city if property else '' }}" required></div>
+                <div class="form-group"><label>State</label><input type="text" id="lst-state" value="{{ property.state if property else '' }}" required></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>Country</label><input type="text" id="lst-country" value="{{ property.country if property else 'India' }}"></div>
+                <div class="form-group" style="position:relative;">
+                    <label>ZIP Code</label>
+                    <input type="text" id="lst-zip" value="{{ property.zip_code if property else '' }}" maxlength="6" required oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+                </div>
+            </div>
+        </div>
+        <div class="form-section">
+            <h3>Details</h3>
+            <div class="form-row">
+                <div class="form-group"><label>Max Guests</label><input type="number" id="lst-guests" value="{{ property.max_guests if property else 2 }}" min="1" required></div>
+                <div class="form-group"><label>Bedrooms</label><input type="number" id="lst-bedrooms" value="{{ property.bedrooms if property else 1 }}" min="0"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>Beds</label><input type="number" id="lst-beds" value="{{ property.beds if property else 1 }}" min="0"></div>
+                <div class="form-group"><label>Bathrooms</label><input type="number" id="lst-bathrooms" value="{{ property.bathrooms if property else 1 }}" min="0" step="0.5"></div>
+            </div>
+        </div>
+        <div class="form-section">
+            <h3>Pricing</h3>
+            <div class="form-row">
+                <div class="form-group"><label>Price per Night (Rs.)</label><input type="number" id="lst-price" value="{{ property.price_per_night if property else '' }}" min="1" required></div>
+                <div class="form-group"><label>Cleaning Fee (Rs.)</label><input type="number" id="lst-cleaning" value="{{ property.cleaning_fee if property else 0 }}" min="0"></div>
+            </div>
+        </div>
+        <div class="form-section">
+            <h3>Amenities</h3>
+            <div id="amenities-container">
+                {% set prop_amenities = property.amenities|map(attribute='amenity_id')|list if property and property.amenities else [] %}
+                {% for category, items in amenities|groupby('category') %}
+                <h4 style="margin-top:16px; margin-bottom:12px; font-size:15px; color:var(--text-secondary);">{{ category|replace('_', ' ')|title if category else 'General' }}</h4>
+                <div class="checkbox-grid" style="margin-bottom: 24px;">
+                    {% for a in items %}
+                    <label class="checkbox-item {% if a.amenity_id in prop_amenities %}checked{% endif %}">
+                        <input type="checkbox" name="amenities" value="{{ a.amenity_id }}" {% if a.amenity_id in prop_amenities %}checked{% endif %}
+                               onchange="this.parentElement.classList.toggle('checked')">
+                        <i class="fas {{ a.icon or 'fa-check' }}"></i> {{ a.name }}
+                    </label>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="form-section">
+            <h3>Images</h3>
+            <div class="form-group">
+                <p style="color:var(--text-muted); font-size:14px; margin-bottom:12px;"><i class="fas fa-info-circle"></i> Image URLs are automatically managed by StayNest to preserve high-quality visual standards. No manual uploading is required.</p>
+                <textarea id="lst-images" style="display:none;">https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800</textarea>
+            </div>
+        </div>
+        <button type="submit" class="btn-submit" id="save-btn">{{ 'Update Listing' if property else 'Create Listing' }}</button>
+    </form>
+</div>
+<script>
+function saveListing(e) {
+    e.preventDefault();
+    const btn = document.getElementById('save-btn'); 
+    
+    // Strict Zip code check
+    const zip = document.getElementById('lst-zip').value;
+    if (zip.length !== 6) {
+        showToast('ZIP Code must be exactly 6 digits.', 'danger');
+        return false;
+    }
+    
+    btn.disabled = true;
+    const amenities = [...document.querySelectorAll('input[name="amenities"]:checked')].map(c=>parseInt(c.value));
+    const images = document.getElementById('lst-images').value.split('\n').map(u=>u.trim()).filter(u=>u);
+    const data = {
+        title: document.getElementById('lst-title').value, description: document.getElementById('lst-description').value,
+        property_type: document.getElementById('lst-type').value, category_id: document.getElementById('lst-category').value || null,
+        address: document.getElementById('lst-address').value, city: document.getElementById('lst-city').value,
+        state: document.getElementById('lst-state').value, country: document.getElementById('lst-country').value,
+        zip_code: document.getElementById('lst-zip').value, max_guests: parseInt(document.getElementById('lst-guests').value),
+        bedrooms: parseInt(document.getElementById('lst-bedrooms').value), beds: parseInt(document.getElementById('lst-beds').value),
+        bathrooms: parseFloat(document.getElementById('lst-bathrooms').value), price_per_night: parseFloat(document.getElementById('lst-price').value),
+        cleaning_fee: parseFloat(document.getElementById('lst-cleaning').value || 0), amenities: amenities, images: images
+    };
+    const isEdit = {{ 'true' if property else 'false' }};
+    const url = isEdit ? '/api/host/listings/{{ property.property_id if property else 0 }}' : '/api/host/listings';
+    const method = isEdit ? 'PUT' : 'POST';
+    fetch(url, {method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(data)})
+    .then(r=>r.json()).then(d => {
+        if (d.success) { showToast(d.message); setTimeout(()=>window.location.href='/host/listings',1000); }
+        else { showToast(d.error,'danger'); btn.disabled=false; }
+    }).catch(()=>{ showToast('Error saving','danger'); btn.disabled=false; });
+    return false;
+}
+</script>
+{% endblock %}

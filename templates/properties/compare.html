@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Compare Properties - StayNest{% endblock %}
+{% block content %}
+<div class="compare-container">
+    <h1 style="font-size:28px;font-weight:700;margin-bottom:24px;">Compare Properties</h1>
+    {% if properties %}
+    <table class="compare-table">
+        <thead><tr><th>Feature</th>{% for p in properties %}<th>{{ p.title }}</th>{% endfor %}</tr></thead>
+        <tbody>
+            <tr><td><strong>Image</strong></td>{% for p in properties %}<td><img src="{{ p.images[0].image_url if p.images else '' }}" class="compare-img" onerror="this.src='https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800'"></td>{% endfor %}</tr>
+            <tr><td><strong>Location</strong></td>{% for p in properties %}<td>{{ p.city }}, {{ p.state }}</td>{% endfor %}</tr>
+            <tr><td><strong>Type</strong></td>{% for p in properties %}<td>{{ p.property_type|capitalize }}</td>{% endfor %}</tr>
+            <tr><td><strong>Price/Night</strong></td>{% for p in properties %}<td>Rs. {{ "{:,.0f}".format(p.price_per_night) }}</td>{% endfor %}</tr>
+            <tr><td><strong>Rating</strong></td>{% for p in properties %}<td><i class="fas fa-star" style="color:#FFC107"></i> {{ "%.1f"|format(p.average_rating) if p.average_rating else 'New' }} ({{ p.total_reviews }} reviews)</td>{% endfor %}</tr>
+            <tr><td><strong>Max Guests</strong></td>{% for p in properties %}<td>{{ p.max_guests }}</td>{% endfor %}</tr>
+            <tr><td><strong>Bedrooms</strong></td>{% for p in properties %}<td>{{ p.bedrooms }}</td>{% endfor %}</tr>
+            <tr><td><strong>Bathrooms</strong></td>{% for p in properties %}<td>{{ p.bathrooms }}</td>{% endfor %}</tr>
+            <tr><td><strong>Cleaning Fee</strong></td>{% for p in properties %}<td>Rs. {{ "{:,.0f}".format(p.cleaning_fee) }}</td>{% endfor %}</tr>
+            <tr><td><strong>Amenities</strong></td>{% for p in properties %}<td>{{ p.amenities|map(attribute='name')|join(', ') }}</td>{% endfor %}</tr>
+            <tr><td></td>{% for p in properties %}<td><a href="/property/{{ p.property_id }}" class="btn-primary-sm" style="display:inline-block;">View Details</a></td>{% endfor %}</tr>
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state"><i class="fas fa-balance-scale"></i><h3>No properties to compare</h3><p>Add properties to compare from the explore page</p><a href="/explore" class="btn-primary">Explore stays</a></div>
+    {% endif %}
+</div>
+{% endblock %}

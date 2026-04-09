@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}Sign Up - StayNest{% endblock %}
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <h1>Create your account</h1>
+        <p class="auth-subtitle">Join StayNest and start your journey</p>
+        <form id="register-form" onsubmit="return handleRegister(event)">
+            <div class="role-selector">
+                <div class="role-option active" data-role="guest" onclick="selectRole('guest', this)">
+                    <i class="fas fa-suitcase"></i><span>Guest</span>
+                </div>
+                <div class="role-option" data-role="host" onclick="selectRole('host', this)">
+                    <i class="fas fa-home"></i><span>Host</span>
+                </div>
+            </div>
+            <input type="hidden" id="reg-role" value="guest">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="reg-first-name">First Name</label>
+                    <input type="text" id="reg-first-name" placeholder="First name" required>
+                </div>
+                <div class="form-group">
+                    <label for="reg-last-name">Last Name</label>
+                    <input type="text" id="reg-last-name" placeholder="Last name" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="reg-email">Email</label>
+                <input type="email" id="reg-email" placeholder="Enter your email" required>
+            </div>
+            <div class="form-group">
+                <label for="reg-phone">Phone Number</label>
+                <div class="phone-input">
+                    <select id="reg-country-code">
+                        {% for code, country in country_codes %}
+                        <option value="{{ code }}" {% if code == '+91' %}selected{% endif %}>{{ code }} {{ country }}</option>
+                        {% endfor %}
+                    </select>
+                    <input type="tel" id="reg-phone" placeholder="10-digit phone number" pattern="[0-9]{10}" title="Please enter a valid 10-digit phone number" required maxlength="10" oninput="validatePhoneUI(this)" style="padding-right:32px;">
+                    <i id="phone-feedback" class="fas" style="position:absolute; right:12px; top:50%; transform:translateY(-50%);"></i>
+                </div>
+                <small id="phone-error-text" style="color:var(--danger); display:none; margin-top:4px; font-size:12px;">Phone number must be exactly 10 digits.</small>
+            </div>
+            <div class="form-group">
+                <label for="reg-password">Password</label>
+                <input type="password" id="reg-password" placeholder="Create a password" required oninput="checkPasswordStrength(this.value)">
+                <div class="password-strength"><div class="password-strength-bar" id="pw-strength-bar"></div></div>
+                <small id="pw-strength-text" style="font-size:12px;color:var(--text-muted);"></small>
+            </div>
+            <button type="submit" class="btn-auth" id="register-btn">Create Account</button>
+        </form>
+        <div class="auth-footer">
+            Already have an account? <a href="/login">Log in</a>
+        </div>
+    </div>
+</div>
+
+<!-- Email Verification Modal -->
+<div class="modal-overlay" id="verification-modal" style="z-index: 1000;">
+    <div class="modal" style="text-align: center; padding: 40px;">
+        <i class="fas fa-envelope-open-text" style="font-size: 48px; color: var(--primary); margin-bottom: 16px;"></i>
+        <h2 style="margin-bottom: 12px;">Verify your email</h2>
+        <p style="color: var(--text-secondary); margin-bottom: 24px;">
+            We've sent a verification link to your email address. Please verify your email to continue using StayNest!
+        </p>
+        <button class="btn-primary" onclick="window.location.href='/login'" style="width: 100%;">Return to Login</button>
+    </div>
+</div>
+<script>
+function selectRole(role, el) {
+    document.querySelectorAll('.role-option').forEach(o => o.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('reg-role').value = role;
+}
+function checkPasswordStrength(pw) {
+    const bar = document.getElementById('pw-strength-bar');
+    const text = document.getElementById('pw-strength-text');
+    let score = 0;
+    if (pw.length >= 8) score++; if (pw.length >= 12) score++;
+    if (/[A-Z]/.test(pw)) score++; if (/[a-z]/.test(pw)) score++;
+    if (/\d/.test(pw)) score++; if (/[!@#$%^&*(),.?":{}|<>]/.test(pw)) score++;
+    bar.className = 'password-strength-bar';
+    if (score <= 2) { bar.classList.add('strength-weak'); text.textContent = 'Weak password'; }
+    else if (score <= 4) { bar.classList.add('strength-medium'); text.textContent = 'Medium strength'; }
+    else { bar.classList.add('strength-strong'); text.textContent = 'Strong password'; }
+}
+function validatePhoneUI(input) {
+    input.value = input.value.replace(/[^0-9]/g, ''); // Enforce numeric only
+    const feedback = document.getElementById('phone-feedback');
+    const errText = document.getElementById('phone-error-text');
+    if (input.value.length === 10) {
+        feedback.className = 'fas fa-check-circle';
+        feedback.style.color = 'var(--success)';
+        errText.style.display = 'none';
+    } else if (input.value.length > 0) {
+        feedback.className = 'fas fa-times-circle';
+        feedback.style.color = 'var(--danger)';
+        errText.style.display = 'block';
+    } else {
+        feedback.className = 'fas';
+        errText.style.display = 'none';
+    }
+}
+function handleRegister(e) {
+    e.preventDefault();
+    const btn = document.getElementById('register-btn');
+    btn.disabled = true; btn.textContent = 'Creating account...';
+    
+    // Strict submit guard
+    if (document.getElementById('reg-phone').value.length !== 10) {
+        showToast('Please enter exactly 10 digits for your phone number.', 'danger');
+        btn.disabled = false; btn.textContent = 'Create Account';
+        return false;
+    }
+
+    fetch('/api/auth/register', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            first_name: document.getElementById('reg-first-name').value,
+            last_name: document.getElementById('reg-last-name').value,
+            email: document.getElementById('reg-email').value,
+            phone_country_code: document.getElementById('reg-country-code').value,
+            phone_number: document.getElementById('reg-phone').value,
+            password: document.getElementById('reg-password').value,
+            role: document.getElementById('reg-role').value
+        })
+    }).then(r => r.json()).then(data => {
+        if (data.success) {
+            document.getElementById('verification-modal').classList.add('active');
+        } else {
+            (data.errors || [data.error]).forEach(e => showToast(e, 'danger'));
+            btn.disabled = false; btn.textContent = 'Create Account';
+        }
+    }).catch(() => { showToast('Something went wrong', 'danger'); btn.disabled = false; btn.textContent = 'Create Account'; });
+    return false;
+}
+</script>
+{% endblock %}

@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Messages - StayNest{% endblock %}
+{% block content %}
+<div class="messages-container">
+    <div class="conversations-list">
+        <div class="conversations-header"><h2>Messages</h2></div>
+        {% for c in conversations %}
+        <div class="conversation-item" onclick="loadThread({{ c.other_user_id }}, '{{ c.first_name }} {{ c.last_name }}', this)">
+            <div class="conversation-avatar">{{ c.first_name[0] }}{{ c.last_name[0] }}</div>
+            <div class="conversation-info">
+                <div class="conversation-name">{{ c.first_name }} {{ c.last_name }}{% if c.unread_count %} <span class="notification-badge" style="position:static;display:inline-flex;">{{ c.unread_count }}</span>{% endif %}</div>
+                <div class="conversation-preview">{{ c.last_message[:50] }}</div>
+            </div>
+        </div>
+        {% endfor %}
+        {% if not conversations %}
+        <div class="notification-empty">No conversations yet</div>
+        {% endif %}
+    </div>
+    <div class="chat-area" id="chat-area">
+        <div class="chat-header" id="chat-header"><h3>Select a conversation</h3></div>
+        <div class="chat-messages" id="chat-messages">
+            <div class="empty-state" style="padding:40px;"><i class="fas fa-comments"></i><p>Choose a conversation to start messaging</p></div>
+        </div>
+        <div class="chat-input" id="chat-input" style="display:none;">
+            <input type="text" id="msg-input" placeholder="Type a message..." onkeyup="if(event.key==='Enter')sendMsg()">
+            <button class="chat-send" onclick="sendMsg()"><i class="fas fa-paper-plane"></i></button>
+        </div>
+    </div>
+</div>
+<script>
+let activeUserId = null;
+function loadThread(userId, name, el) {
+    activeUserId = userId;
+    document.querySelectorAll('.conversation-item').forEach(c=>c.classList.remove('active'));
+    if(el) el.classList.add('active');
+    document.getElementById('chat-header').innerHTML = '<h3>'+name+'</h3>';
+    document.getElementById('chat-input').style.display = 'flex';
+    fetch('/api/messages/'+userId).then(r=>r.json()).then(messages => {
+        const container = document.getElementById('chat-messages');
+        const currentUserId = {{ current_user.user_id if current_user else 0 }};
+        container.innerHTML = messages.map(m => `
+            <div class="chat-message ${m.sender_id === currentUserId ? 'sent' : 'received'}">
+                <div class="chat-bubble">${escapeHtml(m.content)}</div>
+                <div class="chat-time">${formatTime(m.created_at)}</div>
+            </div>
+        `).join('') || '<div class="empty-state" style="padding:40px;"><p>No messages yet. Say hello!</p></div>';
+        container.scrollTop = container.scrollHeight;
+    });
+}
+function sendMsg() {
+    const input = document.getElementById('msg-input');
+    const content = input.value.trim();
+    if (!content || !activeUserId) return;
+    input.value = '';
+    fetch('/api/messages',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({receiver_id:activeUserId,content:content})})
+    .then(r=>r.json()).then(()=>loadThread(activeUserId,document.getElementById('chat-header').querySelector('h3').textContent));
+}
+</script>
+{% endblock %}
